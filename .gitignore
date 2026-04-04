@@ -30,3 +30,4 @@ src/dotnet/**/obj/
 # Node / React
 src/react/node_modules/
 src/react/dist/
+bin/
