@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Swarmpit.Api.Tests/Swarmpit.Api.Tests.csproj" />
+  <Project Path="Swarmpit.Api/Swarmpit.Api.csproj" />
+</Solution>

@@ -22,3 +22,11 @@ pom.xml.asc
 *.iml
 *.local.json
 .claude/worktrees
+
+# .NET
+src/dotnet/**/bin/
+src/dotnet/**/obj/
+
+# Node / React
+src/react/node_modules/
+src/react/dist/
