@@ -23,6 +23,7 @@ import StorageIcon from "@mui/icons-material/Storage";
 import NetworkCheckIcon from "@mui/icons-material/NetworkCheck";
 import LockIcon from "@mui/icons-material/Lock";
 import DescriptionIcon from "@mui/icons-material/Description";
+import AssignmentIcon from "@mui/icons-material/Assignment";
 import LayersIcon from "@mui/icons-material/Layers";
 import PeopleIcon from "@mui/icons-material/People";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
@@ -36,6 +37,7 @@ const DRAWER_WIDTH = 240;
 const navItems = [
   { label: "Dashboard", path: "/", icon: <DashboardIcon /> },
   { label: "Services", path: "/services", icon: <CloudIcon /> },
+  { label: "Tasks", path: "/tasks", icon: <AssignmentIcon /> },
   { label: "Stacks", path: "/stacks", icon: <LayersIcon /> },
   { label: "Networks", path: "/networks", icon: <NetworkCheckIcon /> },
   { label: "Nodes", path: "/nodes", icon: <DnsIcon /> },

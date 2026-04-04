@@ -31,3 +31,5 @@ src/dotnet/**/obj/
 src/react/node_modules/
 src/react/dist/
 bin/
+FileContentIndex/
+v18/

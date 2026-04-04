@@ -7,6 +7,8 @@ namespace Swarmpit.Api.Data.CouchDb;
 
 public class CouchDbClient
 {
+    private static readonly string DbPath = $DbPath;
+
     private readonly HttpClient _http;
     private readonly ILogger<CouchDbClient> _logger;
 
@@ -25,15 +27,15 @@ public class CouchDbClient
 
     public async Task<bool> DatabaseExistsAsync()
     {
-        var response = await _http.SendAsync(new HttpRequestMessage(HttpMethod.Head, "/swarmpit"));
+        var response = await _http.SendAsync(new HttpRequestMessage(HttpMethod.Head, DbPath));
         return response.StatusCode == HttpStatusCode.OK;
     }
 
     public async Task CreateDatabaseAsync()
     {
-        var response = await _http.PutAsync("/swarmpit", null);
+        var response = await _http.PutAsync(DbPath, null);
         response.EnsureSuccessStatusCode();
-        _logger.LogInformation("Created swarmpit database");
+        _logger.LogInformation("Created {DbName} database", AppConstants.CouchDbName);
     }
 
     public async Task<JsonDocument?> GetDocAsync(string id)
@@ -42,7 +44,7 @@ public class CouchDbClient
 
         try
         {
-            var response = await _http.GetAsync($"/swarmpit/{Uri.EscapeDataString(id)}");
+            var response = await _http.GetAsync($"{DbPath}/{Uri.EscapeDataString(id)}");
             if (response.StatusCode == HttpStatusCode.NotFound) return null;
             response.EnsureSuccessStatusCode();
             var json = await response.Content.ReadAsStringAsync();
@@ -61,7 +63,7 @@ public class CouchDbClient
             JsonSerializer.Serialize(doc, JsonOptions),
             new MediaTypeHeaderValue("application/json"));
 
-        var response = await _http.PostAsync("/swarmpit", content);
+        var response = await _http.PostAsync(DbPath, content);
         response.EnsureSuccessStatusCode();
         var json = await response.Content.ReadAsStringAsync();
         return JsonSerializer.Deserialize<CouchDbCreateResponse>(json, JsonOptions)!;
@@ -73,14 +75,14 @@ public class CouchDbClient
             JsonSerializer.Serialize(doc, JsonOptions),
             new MediaTypeHeaderValue("application/json"));
 
-        var response = await _http.PutAsync($"/swarmpit/{Uri.EscapeDataString(id)}?rev={rev}", content);
+        var response = await _http.PutAsync($"{DbPath}/{Uri.EscapeDataString(id)}?rev={rev}", content);
         response.EnsureSuccessStatusCode();
     }
 
     public async Task DeleteDocAsync(string id, string rev)
     {
         var response = await _http.DeleteAsync(
-            $"/swarmpit/{Uri.EscapeDataString(id)}?rev={Uri.EscapeDataString(rev)}");
+            $"{DbPath}/{Uri.EscapeDataString(id)}?rev={Uri.EscapeDataString(rev)}");
         response.EnsureSuccessStatusCode();
     }
 
@@ -113,7 +115,7 @@ public class CouchDbClient
             JsonSerializer.Serialize(body, JsonOptions),
             new MediaTypeHeaderValue("application/json"));
 
-        var response = await _http.PostAsync("/swarmpit/_find", content);
+        var response = await _http.PostAsync("/{AppConstants.CouchDbName}/_find", content);
         response.EnsureSuccessStatusCode();
 
         var json = await response.Content.ReadAsStringAsync();

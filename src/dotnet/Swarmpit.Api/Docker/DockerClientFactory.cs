@@ -1,25 +1,29 @@
 using Docker.DotNet;
+using Microsoft.Extensions.Options;
 
 namespace Swarmpit.Api.Docker;
 
-public class DockerClientFactory
+public class DockerClientFactory(IOptions<DockerOptions> options, ILogger<DockerClientFactory> logger)
 {
-    private readonly IConfiguration _config;
     private DockerClient? _client;
-
-    public DockerClientFactory(IConfiguration config)
-    {
-        _config = config;
-    }
 
     public DockerClient GetClient()
     {
         if (_client != null) return _client;
 
-        var dockerSock = _config["SWARMPIT_DOCKER_SOCK"] ?? "/var/run/docker.sock";
+        var endpoint = options.Value.Endpoint;
 
-        _client = new DockerClientConfiguration(new Uri($"unix://{dockerSock}"))
-            .CreateClient();
+        if (!string.IsNullOrEmpty(endpoint))
+        {
+            var uri = new Uri(endpoint.Contains("://") ? endpoint : $"unix://{endpoint}");
+            logger.LogInformation("Connecting to Docker at {Endpoint}", uri);
+            _client = new DockerClientConfiguration(uri).CreateClient();
+        }
+        else
+        {
+            logger.LogInformation("Connecting to Docker using platform default");
+            _client = new DockerClientConfiguration().CreateClient();
+        }
 
         return _client;
     }

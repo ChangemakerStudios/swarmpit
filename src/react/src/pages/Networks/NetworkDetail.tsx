@@ -1,0 +1,149 @@
+import { useEffect, useState } from "react";
+import { useParams, useNavigate, Link as RouterLink } from "react-router-dom";
+import {
+  Box,
+  Card,
+  CardContent,
+  Chip,
+  Grid,
+  LinearProgress,
+  Typography,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Link,
+} from "@mui/material";
+import DeleteIcon from "@mui/icons-material/Delete";
+import {
+  getNetwork,
+  getNetworkServices,
+  deleteNetwork,
+  type SwarmNetwork,
+} from "../../api/networks";
+import { formatDate } from "../../utils/time";
+
+function InfoItem({ label, value }: { label: string; value?: string | number | null }) {
+  return (
+    <Box sx={{ mb: 1 }}>
+      <Typography variant="caption" color="text.secondary">
+        {label}
+      </Typography>
+      <Typography variant="body1">{value ?? "-"}</Typography>
+    </Box>
+  );
+}
+
+export default function NetworkDetail() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [network, setNetwork] = useState<SwarmNetwork | null>(null);
+  const [services, setServices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
+  useEffect(() => {
+    if (!id) return;
+    Promise.all([getNetwork(id), getNetworkServices(id)])
+      .then(([net, svcs]) => {
+        setNetwork(net);
+        setServices(svcs);
+      })
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  const handleDelete = async () => {
+    if (!id) return;
+    await deleteNetwork(id);
+    navigate("/networks");
+  };
+
+  if (loading) return <LinearProgress />;
+  if (!network) return <Typography>Network not found</Typography>;
+
+  return (
+    <Box>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
+        <Typography variant="h5">{network.networkName}</Typography>
+        <Box sx={{ flexGrow: 1 }} />
+        <Button
+          variant="outlined"
+          color="error"
+          startIcon={<DeleteIcon />}
+          onClick={() => setDeleteOpen(true)}
+        >
+          Delete
+        </Button>
+      </Box>
+
+      <Grid container spacing={3}>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                General
+              </Typography>
+              <InfoItem label="ID" value={network.id} />
+              <InfoItem label="Driver" value={network.driver} />
+              <InfoItem label="Scope" value={network.scope} />
+              <InfoItem label="Created" value={formatDate(network.created)} />
+              <InfoItem label="Subnet" value={network.ipam?.subnet} />
+              <InfoItem label="Gateway" value={network.ipam?.gateway} />
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 2 }}>
+                {network.internal && <Chip label="Internal" size="small" />}
+                {network.ingress && <Chip label="Ingress" size="small" />}
+                {network.attachable && <Chip label="Attachable" size="small" />}
+                {network.enableIPv6 && <Chip label="IPv6" size="small" />}
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Linked Services
+              </Typography>
+              {services.length === 0 ? (
+                <Typography color="text.secondary">No linked services</Typography>
+              ) : (
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                  {services.map((svc: any) => (
+                    <Chip
+                      key={svc.id}
+                      label={svc.serviceName}
+                      size="small"
+                      variant="outlined"
+                      component={RouterLink}
+                      to={`/services/${svc.id}`}
+                      clickable
+                    />
+                  ))}
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)}>
+        <DialogTitle>Delete Network</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete network{" "}
+            <strong>{network.networkName}</strong>? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteOpen(false)}>Cancel</Button>
+          <Button onClick={handleDelete} color="error" variant="contained">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+}

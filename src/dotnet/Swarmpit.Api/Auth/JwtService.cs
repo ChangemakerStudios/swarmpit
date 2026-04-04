@@ -27,7 +27,7 @@ public class JwtService
         var claims = new List<Claim>
         {
             new("usr", userClaim),
-            new("iss", isApiToken ? "swarmpit-api" : "swarmpit"),
+            new("iss", isApiToken ? AppConstants.ApiIssuer : AppConstants.AppIssuer),
             new(JwtRegisteredClaimNames.Sub, user.Username)
         };
 
@@ -41,7 +41,7 @@ public class JwtService
             : DateTime.UtcNow.AddHours(24);
 
         var token = new JwtSecurityToken(
-            issuer: isApiToken ? "swarmpit-api" : "swarmpit",
+            issuer: isApiToken ? AppConstants.ApiIssuer : AppConstants.AppIssuer,
             claims: claims,
             expires: expiry,
             signingCredentials: credentials);

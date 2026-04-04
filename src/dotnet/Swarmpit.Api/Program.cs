@@ -2,9 +2,12 @@ using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
+
+using Swarmpit.Api;
 using Swarmpit.Api.Auth;
 using Swarmpit.Api.Data.CouchDb;
 using Swarmpit.Api.Docker;
+using DockerOptions = Swarmpit.Api.Docker.DockerOptions;
 
 // Disable legacy claim type mapping so claims like "sub" stay as "sub"
 // instead of being mapped to the long-form URI claim types
@@ -36,7 +39,10 @@ builder.Services.AddSingleton<SecretRepository>();
 builder.Services.AddSingleton<UserRepository>();
 
 // Docker
+builder.Services.Configure<DockerOptions>(builder.Configuration.GetSection(DockerOptions.SectionName));
 builder.Services.AddSingleton<DockerClientFactory>();
+builder.Services.AddHealthChecks()
+    .AddCheck<DockerHealthCheck>("docker", tags: ["ready"]);
 
 // JWT Auth
 builder.Services.AddSingleton<JwtService>();
@@ -47,7 +53,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
-            ValidIssuers = ["swarmpit", "swarmpit-api"],
+            ValidIssuers = [AppConstants.AppIssuer, AppConstants.ApiIssuer],
             ValidateAudience = false,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
@@ -100,6 +106,11 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 
 app.MapControllers();
+app.MapHealthChecks("/healthz");
+app.MapHealthChecks("/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready")
+});
 
 // SPA fallback: any unmatched route serves index.html
 app.MapFallbackToFile("index.html");
