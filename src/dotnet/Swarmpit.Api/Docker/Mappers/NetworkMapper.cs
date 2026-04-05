@@ -8,7 +8,8 @@ public static class NetworkMapper
     public static SwarmNetwork ToSwarmNetwork(NetworkResponse network)
     {
         var labels = network.Labels ?? new Dictionary<string, string>();
-        labels.TryGetValue(AppConstants.DockerLabels.StackNamespace, out var stack);
+        if (!labels.TryGetValue(AppConstants.DockerLabels.StackNamespace, out var stack))
+            labels.TryGetValue(AppConstants.DockerLabels.ComposeProject, out stack);
 
         var ipamConfig = network.IPAM?.Config?.FirstOrDefault();
 

@@ -13,6 +13,7 @@ public static class AppConstants
     public static class DockerLabels
     {
         public const string StackNamespace = "com.docker.stack.namespace";
+        public const string ComposeProject = "com.docker.compose.project";
 
         public const string DockerLabelPrefix = "com.docker.";
 

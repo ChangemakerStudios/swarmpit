@@ -8,7 +8,8 @@ public static class VolumeMapper
     public static SwarmVolume ToSwarmVolume(VolumeResponse volume)
     {
         var labels = volume.Labels ?? new Dictionary<string, string>();
-        labels.TryGetValue(AppConstants.DockerLabels.StackNamespace, out var stack);
+        if (!labels.TryGetValue(AppConstants.DockerLabels.StackNamespace, out var stack))
+            labels.TryGetValue(AppConstants.DockerLabels.ComposeProject, out stack);
 
         return new SwarmVolume
         {

@@ -37,6 +37,8 @@ builder.Services.AddHttpClient<CouchDbClient>(client =>
 
 builder.Services.AddSingleton<SecretRepository>();
 builder.Services.AddSingleton<UserRepository>();
+builder.Services.AddSingleton<StackFileRepository>();
+builder.Services.AddSingleton<RegistryRepository>();
 
 // Docker
 builder.Services.Configure<DockerOptions>(builder.Configuration.GetSection(DockerOptions.SectionName));

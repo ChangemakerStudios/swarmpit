@@ -24,6 +24,14 @@ import SecretCreate from "./pages/Secrets/SecretCreate";
 import ConfigList from "./pages/Configs/ConfigList";
 import ConfigDetail from "./pages/Configs/ConfigDetail";
 import ConfigCreate from "./pages/Configs/ConfigCreate";
+import StackList from "./pages/Stacks/StackList";
+import StackCreate from "./pages/Stacks/StackCreate";
+import StackDetail from "./pages/Stacks/StackDetail";
+import StackEdit from "./pages/Stacks/StackEdit";
+import RegistryList from "./pages/Registries/RegistryList";
+import RegistryCreate from "./pages/Registries/RegistryCreate";
+import RegistryDetail from "./pages/Registries/RegistryDetail";
+import RegistryEdit from "./pages/Registries/RegistryEdit";
 
 const router = createBrowserRouter([
   {
@@ -60,9 +68,15 @@ const router = createBrowserRouter([
       { path: "configs", element: <ConfigList /> },
       { path: "configs/create", element: <ConfigCreate /> },
       { path: "configs/:id", element: <ConfigDetail /> },
-      { path: "stacks", element: <PlaceholderPage title="Stacks" /> },
+      { path: "stacks", element: <StackList /> },
+      { path: "stacks/create", element: <StackCreate /> },
+      { path: "stacks/:name", element: <StackDetail /> },
+      { path: "stacks/:name/edit", element: <StackEdit /> },
+      { path: "registries", element: <RegistryList /> },
+      { path: "registries/create", element: <RegistryCreate /> },
+      { path: "registries/:id", element: <RegistryDetail /> },
+      { path: "registries/:id/edit", element: <RegistryEdit /> },
       { path: "users", element: <PlaceholderPage title="Users" /> },
-      { path: "registries", element: <PlaceholderPage title="Registries" /> },
     ],
   },
 ]);
