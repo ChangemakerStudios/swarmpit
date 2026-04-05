@@ -1,4 +1,5 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import Breadcrumb from "../components/Breadcrumb";
 import {
   AppBar,
   Box,
@@ -155,6 +156,7 @@ export default function AppLayout() {
           overflowY: "auto",
         }}
       >
+        <Breadcrumb />
         <Outlet />
       </Box>
     </Box>

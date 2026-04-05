@@ -19,6 +19,18 @@ const columns: Column<User>[] = [
     ),
   },
   { id: "email", label: "Email", minWidth: 200 },
+  {
+    id: "hasApiToken",
+    label: "API Token",
+    render: (row) => (
+      <Chip
+        label={row.hasApiToken ? "Active" : "None"}
+        size="small"
+        color={row.hasApiToken ? "success" : "default"}
+        variant={row.hasApiToken ? "filled" : "outlined"}
+      />
+    ),
+  },
 ];
 
 export default function UserList() {

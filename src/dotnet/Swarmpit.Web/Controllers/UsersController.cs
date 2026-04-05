@@ -14,7 +14,7 @@ public class UsersController(IUserRepository users) : ControllerBase
     public async Task<IActionResult> List()
     {
         var allUsers = await users.GetAllAsync();
-        return Ok(allUsers.Select(u => new { u.Username, u.Role, u.Email }));
+        return Ok(allUsers.Select(u => new { u.Username, u.Role, u.Email, HasApiToken = u.ApiToken != null }));
     }
 
     [HttpGet("{username}")]
@@ -22,7 +22,7 @@ public class UsersController(IUserRepository users) : ControllerBase
     {
         var user = await users.GetByUsernameAsync(username);
         if (user == null) return NotFound();
-        return Ok(new { user.Username, user.Role, user.Email });
+        return Ok(new { user.Username, user.Role, user.Email, HasApiToken = user.ApiToken != null });
     }
 
     [HttpPost]

@@ -4,6 +4,7 @@ export interface User {
   username: string;
   role: string;
   email?: string;
+  hasApiToken?: boolean;
 }
 
 export const getUsers = () => api.get<User[]>('/api/users').then(r => r.data);
