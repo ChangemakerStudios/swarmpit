@@ -11,9 +11,11 @@ import {
   DialogContentText,
   DialogTitle,
   Grid,
+  IconButton,
   LinearProgress,
   Typography,
 } from "@mui/material";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import VpnKeyIcon from "@mui/icons-material/VpnKey";
@@ -48,6 +50,7 @@ export default function UserDetail() {
   const [loading, setLoading] = useState(true);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [tokenDialogOpen, setTokenDialogOpen] = useState(false);
+  const [revokeOpen, setRevokeOpen] = useState(false);
   const [generatedToken, setGeneratedToken] = useState("");
 
   const isSelf = currentUsername === username;
@@ -71,6 +74,8 @@ export default function UserDetail() {
       const data = await generateApiToken(username);
       setGeneratedToken(data.token ?? JSON.stringify(data));
       setTokenDialogOpen(true);
+      const updated = await getUser(username);
+      setUser(updated);
     } catch {
       // error handled silently
     }
@@ -79,6 +84,8 @@ export default function UserDetail() {
   const handleRevokeToken = async () => {
     if (!username) return;
     await revokeApiToken(username);
+    const updated = await getUser(username);
+    setUser(updated);
   };
 
   if (loading) return <LinearProgress />;
@@ -96,20 +103,23 @@ export default function UserDetail() {
         >
           Edit
         </Button>
-        <Button
-          variant="outlined"
-          startIcon={<VpnKeyIcon />}
-          onClick={handleGenerateToken}
-        >
-          Generate API Token
-        </Button>
-        <Button
-          variant="outlined"
-          startIcon={<BlockIcon />}
-          onClick={handleRevokeToken}
-        >
-          Revoke API Token
-        </Button>
+        {!user.hasApiToken ? (
+          <Button
+            variant="outlined"
+            startIcon={<VpnKeyIcon />}
+            onClick={handleGenerateToken}
+          >
+            Generate API Token
+          </Button>
+        ) : (
+          <Button
+            variant="outlined"
+            startIcon={<BlockIcon />}
+            onClick={() => setRevokeOpen(true)}
+          >
+            Revoke API Token
+          </Button>
+        )}
         <Button
           variant="outlined"
           color="error"
@@ -131,6 +141,7 @@ export default function UserDetail() {
               <InfoItem label="Username" value={user.username} />
               <InfoItem label="Role" value={user.role} />
               <InfoItem label="Email" value={user.email} />
+              <InfoItem label="API Token" value={user.hasApiToken ? "Active" : "None"} />
             </CardContent>
           </Card>
         </Grid>
@@ -153,6 +164,30 @@ export default function UserDetail() {
         </DialogActions>
       </Dialog>
 
+      {/* Revoke confirmation dialog */}
+      <Dialog open={revokeOpen} onClose={() => setRevokeOpen(false)}>
+        <DialogTitle>Revoke API Token</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to revoke the API token for{" "}
+            <strong>{user.username}</strong>? Any integrations using this token will stop working.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRevokeOpen(false)}>Cancel</Button>
+          <Button
+            onClick={async () => {
+              await handleRevokeToken();
+              setRevokeOpen(false);
+            }}
+            color="warning"
+            variant="contained"
+          >
+            Revoke
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Generated token dialog */}
       <Dialog open={tokenDialogOpen} onClose={() => setTokenDialogOpen(false)}>
         <DialogTitle>API Token Generated</DialogTitle>
@@ -160,18 +195,30 @@ export default function UserDetail() {
           <DialogContentText sx={{ mb: 2 }}>
             Copy this token now. It will not be shown again.
           </DialogContentText>
-          <Typography
-            variant="body2"
+          <Box
             sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
               fontFamily: "monospace",
+              fontSize: "0.85rem",
               wordBreak: "break-all",
               p: 2,
               bgcolor: "grey.100",
               borderRadius: 1,
             }}
           >
-            {generatedToken}
-          </Typography>
+            <Typography variant="body2" sx={{ fontFamily: "monospace", flex: 1, wordBreak: "break-all" }}>
+              {generatedToken}
+            </Typography>
+            <IconButton
+              size="small"
+              onClick={() => navigator.clipboard.writeText(generatedToken)}
+              title="Copy to clipboard"
+            >
+              <ContentCopyIcon fontSize="small" />
+            </IconButton>
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setTokenDialogOpen(false)}>Close</Button>
