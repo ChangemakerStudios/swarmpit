@@ -55,6 +55,11 @@ export async function redeployStack(name: string): Promise<any> {
   return response.data;
 }
 
+export async function getStackCompose(name: string): Promise<string> {
+  const response = await api.get(`/api/stacks/${name}/compose`);
+  return response.data;
+}
+
 export async function getStackServices(name: string): Promise<any[]> {
   const response = await api.get(`/api/stacks/${name}/services`);
   return response.data;

@@ -19,7 +19,8 @@ public class StacksController(
     DockerSecretRepository secrets,
     IConfigRepository configs,
     IStackFileRepository stackFiles,
-    IStackDeployService stackDeploy) : ControllerBase
+    IStackDeployService stackDeploy,
+    IComposeGeneratorService composeGenerator) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> List()
@@ -187,6 +188,13 @@ public class StacksController(
     {
         await stackFiles.SaveAsync(name, request.Compose);
         return Ok(new { message = "Stackfile saved" });
+    }
+
+    [HttpGet("{name}/compose")]
+    public async Task<IActionResult> Compose(string name)
+    {
+        var yaml = await composeGenerator.GenerateStackComposeAsync(name);
+        return Content(yaml, "text/yaml");
     }
 
     [HttpDelete("{name}")]

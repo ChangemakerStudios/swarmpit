@@ -70,6 +70,7 @@ builder.Services.AddSingleton<Swarmpit.Core.Application.Docker.ISecretRepository
 builder.Services.AddSingleton<IConfigRepository>(sp => sp.GetRequiredService<DockerRepository>());
 builder.Services.AddSingleton<ITaskRepository>(sp => sp.GetRequiredService<DockerRepository>());
 builder.Services.AddSingleton<IStackDeployService, StackDeployService>();
+builder.Services.AddSingleton<IComposeGeneratorService, ComposeGeneratorService>();
 builder.Services.AddHealthChecks()
     .AddCheck<DockerHealthCheck>("docker", tags: ["ready"]);
 

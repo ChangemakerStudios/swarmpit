@@ -13,8 +13,13 @@ import {
   DialogTitle,
   Grid,
   LinearProgress,
+  MenuItem,
+  Snackbar,
+  Alert,
+  TextField,
   Typography,
 } from "@mui/material";
+import SaveIcon from "@mui/icons-material/Save";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import DescriptionIcon from "@mui/icons-material/Description";
@@ -22,7 +27,9 @@ import DataTable from "../../components/DataTable";
 import {
   getStack,
   getStackFile,
+  getStackCompose,
   getStackServices,
+  saveStackFile,
   deleteStack,
   type SwarmStack,
   type StackFile,
@@ -72,25 +79,84 @@ export default function StackDetail() {
   const [loading, setLoading] = useState(true);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
+  const [composeVersion, setComposeVersion] = useState<"current" | "previous" | "generated">("current");
+  const [generatedCompose, setGeneratedCompose] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [snackbar, setSnackbar] = useState<string | null>(null);
 
   useEffect(() => {
     if (!name) return;
-    Promise.all([getStack(name), getStackServices(name), getStackFile(name)])
-      .then(([s, svc, sf]) => {
+
+    const loadData = async () => {
+      try {
+        const [s, svc] = await Promise.all([getStack(name), getStackServices(name)]);
         setStack(s);
         setServices(svc);
-        setStackFile(sf);
-      })
-      .catch(() => {
-        // stackFile might not exist, still load the rest
-        Promise.all([getStack(name), getStackServices(name)])
-          .then(([s, svc]) => {
-            setStack(s);
-            setServices(svc);
-          });
-      })
-      .finally(() => setLoading(false));
+
+        // Try loading stackfile (may not exist)
+        try {
+          const sf = await getStackFile(name);
+          setStackFile(sf);
+        } catch {
+          // No saved stackfile — will use generated
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
   }, [name]);
+
+  const handleOpenCompose = async () => {
+    // If no saved stackfile, generate from live state
+    if (!stackFile?.spec?.compose && name) {
+      try {
+        const yaml = await getStackCompose(name);
+        setGeneratedCompose(yaml);
+        setComposeVersion("generated");
+      } catch {
+        setGeneratedCompose("# Failed to generate compose from live state");
+        setComposeVersion("generated");
+      }
+    } else {
+      setComposeVersion("current");
+    }
+    setComposeOpen(true);
+  };
+
+  const handleSaveCompose = async () => {
+    if (!name) return;
+    const yaml = getComposeContent();
+    if (!yaml) return;
+
+    setSaving(true);
+    try {
+      await saveStackFile(name, yaml);
+      const sf = await getStackFile(name);
+      setStackFile(sf);
+      setSnackbar("Stackfile saved");
+    } catch {
+      setSnackbar("Failed to save stackfile");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Fetch generated compose on demand
+  useEffect(() => {
+    if (composeVersion === "generated" && !generatedCompose && name) {
+      getStackCompose(name)
+        .then(setGeneratedCompose)
+        .catch(() => setGeneratedCompose("# Failed to generate compose"));
+    }
+  }, [composeVersion, generatedCompose, name]);
+
+  const getComposeContent = (): string => {
+    if (composeVersion === "previous") return stackFile?.previousSpec?.compose ?? "";
+    if (composeVersion === "generated") return generatedCompose ?? "";
+    return stackFile?.spec?.compose ?? "";
+  };
 
   const handleDelete = async () => {
     if (!name) return;
@@ -110,15 +176,13 @@ export default function StackDetail() {
           color={stateColor(stack.state)}
         />
         <Box sx={{ flexGrow: 1 }} />
-        {stackFile?.spec?.compose && (
-          <Button
-            variant="outlined"
-            startIcon={<DescriptionIcon />}
-            onClick={() => setComposeOpen(true)}
-          >
-            View Compose
-          </Button>
-        )}
+        <Button
+          variant="outlined"
+          startIcon={<DescriptionIcon />}
+          onClick={handleOpenCompose}
+        >
+          View Compose
+        </Button>
         <Button
           variant="outlined"
           startIcon={<EditIcon />}
@@ -195,19 +259,61 @@ export default function StackDetail() {
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>Compose File</DialogTitle>
+        <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+          Compose File
+          <TextField
+            select
+            size="small"
+            value={composeVersion}
+            onChange={(e) => setComposeVersion(e.target.value as any)}
+            sx={{ ml: "auto", minWidth: 160 }}
+          >
+            {stackFile?.spec?.compose && (
+              <MenuItem value="current">Current</MenuItem>
+            )}
+            {stackFile?.previousSpec?.compose && (
+              <MenuItem value="previous">Previous</MenuItem>
+            )}
+            <MenuItem value="generated">Generated (live)</MenuItem>
+          </TextField>
+        </DialogTitle>
         <DialogContent>
-          <YamlEditor
-            value={stackFile?.spec?.compose ?? ""}
-            onChange={() => {}}
-            readOnly
-            minHeight="300px"
-          />
+          {composeVersion === "generated" && !generatedCompose ? (
+            <Typography color="text.secondary" sx={{ py: 4, textAlign: "center" }}>
+              Loading...
+            </Typography>
+          ) : (
+            <YamlEditor
+              value={getComposeContent()}
+              onChange={() => {}}
+              readOnly
+              minHeight="300px"
+            />
+          )}
         </DialogContent>
         <DialogActions>
+          {composeVersion === "generated" && generatedCompose && (
+            <Button
+              startIcon={<SaveIcon />}
+              onClick={handleSaveCompose}
+              disabled={saving}
+            >
+              Save as Stackfile
+            </Button>
+          )}
           <Button onClick={() => setComposeOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
+
+      <Snackbar
+        open={!!snackbar}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar(null)}
+      >
+        <Alert severity="success" onClose={() => setSnackbar(null)}>
+          {snackbar}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

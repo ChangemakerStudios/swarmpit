@@ -9,7 +9,7 @@ namespace Swarmpit.Web.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/services")]
-public class ServicesController(IServiceRepository services) : ControllerBase
+public class ServicesController(IServiceRepository services, IComposeGeneratorService composeGenerator) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> List() => Ok(await services.ListAsync());
@@ -134,7 +134,7 @@ public class ServicesController(IServiceRepository services) : ControllerBase
     {
         try
         {
-            var yaml = await services.GetComposeYamlAsync(id);
+            var yaml = await composeGenerator.GenerateServiceComposeAsync(id);
             return Content(yaml, "text/yaml");
         }
         catch (Docker.DotNet.DockerApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
