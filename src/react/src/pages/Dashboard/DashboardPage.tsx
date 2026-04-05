@@ -9,6 +9,7 @@ import {
   Grid,
   LinearProgress,
 } from "@mui/material";
+import { getContainers } from "../../api/containers";
 import { getServices } from "../../api/services";
 import { getNodes } from "../../api/nodes";
 import { getNetworks } from "../../api/networks";
@@ -27,6 +28,7 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [counts, setCounts] = useState<CountCard[]>([
+    { label: "Containers", path: "/containers", count: null },
     { label: "Services", path: "/services", count: null },
     { label: "Tasks", path: "/tasks", count: null },
     { label: "Nodes", path: "/nodes", count: null },
@@ -38,6 +40,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     Promise.all([
+      getContainers(false).then((r) => r.length),
       getServices().then((r) => r.length),
       getTasks().then((r) => r.length),
       getNodes().then((r) => r.length),
@@ -46,8 +49,9 @@ export default function DashboardPage() {
       getSecrets().then((r) => r.length),
       getConfigs().then((r) => r.length),
     ])
-      .then(([services, tasks, nodes, networks, volumes, secrets, configs]) => {
+      .then(([containers, services, tasks, nodes, networks, volumes, secrets, configs]) => {
         setCounts([
+          { label: "Containers", path: "/containers", count: containers },
           { label: "Services", path: "/services", count: services },
           { label: "Tasks", path: "/tasks", count: tasks },
           { label: "Nodes", path: "/nodes", count: nodes },

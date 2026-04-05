@@ -69,6 +69,7 @@ builder.Services.AddSingleton<IVolumeRepository>(sp => sp.GetRequiredService<Doc
 builder.Services.AddSingleton<Swarmpit.Core.Application.Docker.ISecretRepository>(sp => sp.GetRequiredService<DockerRepository>());
 builder.Services.AddSingleton<IConfigRepository>(sp => sp.GetRequiredService<DockerRepository>());
 builder.Services.AddSingleton<ITaskRepository>(sp => sp.GetRequiredService<DockerRepository>());
+builder.Services.AddSingleton<IContainerRepository>(sp => sp.GetRequiredService<DockerRepository>());
 builder.Services.AddSingleton<IStackDeployService, StackDeployService>();
 builder.Services.AddSingleton<IComposeGeneratorService, ComposeGeneratorService>();
 builder.Services.AddHealthChecks()

@@ -73,6 +73,17 @@ public interface ITaskRepository
     Task<SwarmTask?> GetAsync(string id);
 }
 
+public interface IContainerRepository
+{
+    Task<List<Container>> ListAsync(bool all = true);
+    Task<ContainerDetail?> GetAsync(string id);
+    Task StartAsync(string id);
+    Task StopAsync(string id);
+    Task RestartAsync(string id);
+    Task RemoveAsync(string id, bool force = false);
+    Task<List<object>> GetLogsAsync(string id, string? since = null, int tail = 500);
+}
+
 public class CreateServiceParams
 {
     public string ServiceName { get; set; } = "";

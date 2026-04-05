@@ -11,7 +11,8 @@ namespace Swarmpit.Core.Infrastructure.Docker;
 
 public class DockerRepository(DockerClientFactory docker) :
     IServiceRepository, INodeRepository, INetworkRepository,
-    IVolumeRepository, ISecretRepository, IConfigRepository, ITaskRepository
+    IVolumeRepository, ISecretRepository, IConfigRepository, ITaskRepository,
+    IContainerRepository
 {
     // ──── Services ────
 
@@ -881,6 +882,223 @@ public class DockerRepository(DockerClientFactory docker) :
         if (labels == null) return null;
         labels.TryGetValue(AppConstants.DockerLabels.StackNamespace, out var stackName);
         return stackName;
+    }
+
+    // ──── Containers ────
+
+    async Task<List<Domain.Docker.Container>> IContainerRepository.ListAsync(bool all)
+    {
+        var client = docker.GetClient();
+        var containers = await client.Containers.ListContainersAsync(
+            new ContainersListParameters { All = all });
+
+        return containers.Select(MapContainer).ToList();
+    }
+
+    async Task<ContainerDetail?> IContainerRepository.GetAsync(string id)
+    {
+        var client = docker.GetClient();
+        try
+        {
+            var inspect = await client.Containers.InspectContainerAsync(id);
+            return MapContainerDetail(inspect);
+        }
+        catch (DockerApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+    }
+
+    async Task IContainerRepository.StartAsync(string id)
+    {
+        var client = docker.GetClient();
+        await client.Containers.StartContainerAsync(id, new ContainerStartParameters());
+    }
+
+    async Task IContainerRepository.StopAsync(string id)
+    {
+        var client = docker.GetClient();
+        await client.Containers.StopContainerAsync(id, new ContainerStopParameters());
+    }
+
+    async Task IContainerRepository.RestartAsync(string id)
+    {
+        var client = docker.GetClient();
+        await client.Containers.RestartContainerAsync(id, new ContainerRestartParameters());
+    }
+
+    async Task IContainerRepository.RemoveAsync(string id, bool force)
+    {
+        var client = docker.GetClient();
+        await client.Containers.RemoveContainerAsync(id, new ContainerRemoveParameters { Force = force });
+    }
+
+    async Task<List<object>> IContainerRepository.GetLogsAsync(string id, string? since, int tail)
+    {
+        var client = docker.GetClient();
+        var sinceParam = ParseSinceParameter(since);
+
+        try
+        {
+            using var logsStream = await client.Containers.GetContainerLogsAsync(
+                id,
+                false,
+                new ContainerLogsParameters
+                {
+                    ShowStdout = true,
+                    ShowStderr = true,
+                    Tail = tail.ToString(),
+                    Timestamps = true,
+                    Since = sinceParam
+                },
+                CancellationToken.None);
+
+            var (stdout, stderr) = await logsStream.ReadOutputToEndAsync(CancellationToken.None);
+            var allOutput = string.IsNullOrEmpty(stderr) ? stdout : stdout + "\n" + stderr;
+
+            var logLines = new List<object>();
+            foreach (var rawLine in allOutput.Split('\n'))
+            {
+                var line = rawLine.TrimEnd('\r');
+                if (string.IsNullOrEmpty(line)) continue;
+
+                var timestamp = "";
+                var content = line;
+
+                var spaceIdx = line.IndexOf(' ');
+                if (spaceIdx > 0 && line.Length > spaceIdx + 1)
+                {
+                    var possibleTimestamp = line[..spaceIdx];
+                    if (possibleTimestamp.Contains('T') && possibleTimestamp.Contains(':'))
+                    {
+                        timestamp = possibleTimestamp;
+                        content = line[(spaceIdx + 1)..];
+                    }
+                }
+
+                logLines.Add(new { line = content, timestamp });
+            }
+
+            return logLines;
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    private static Domain.Docker.Container MapContainer(ContainerListResponse c)
+    {
+        var fullId = c.ID ?? "";
+        return new Domain.Docker.Container
+        {
+            Id = fullId.Length >= 12 ? fullId[..12] : fullId,
+            FullId = fullId,
+            Name = (c.Names?.FirstOrDefault() ?? "").TrimStart('/'),
+            Image = c.Image ?? "",
+            ImageId = c.ImageID ?? "",
+            State = (c.State ?? "").ToLowerInvariant(),
+            Status = c.Status ?? "",
+            Created = new DateTimeOffset(c.Created, TimeSpan.Zero).ToString("o"),
+            Ports = c.Ports?.Select(p => new ContainerPort
+            {
+                PrivatePort = (int)p.PrivatePort,
+                PublicPort = p.PublicPort > 0 ? (int?)p.PublicPort : null,
+                Type = p.Type ?? "tcp",
+                Ip = p.IP
+            }).ToList() ?? [],
+            Labels = c.Labels != null ? new Dictionary<string, string>(c.Labels) : new Dictionary<string, string>(),
+            Networks = c.NetworkSettings?.Networks?.Keys.ToList() ?? [],
+            Mounts = c.Mounts?.Select(m => new ContainerMount
+            {
+                Type = m.Type ?? "",
+                Source = m.Source ?? "",
+                Destination = m.Destination ?? "",
+                ReadOnly = !m.RW
+            }).ToList() ?? [],
+            Command = c.Command ?? "",
+            Stack = c.Labels != null && c.Labels.TryGetValue("com.docker.compose.project", out var stack) ? stack : null
+        };
+    }
+
+    private static ContainerDetail MapContainerDetail(ContainerInspectResponse inspect)
+    {
+        var fullId = inspect.ID ?? "";
+        var config = inspect.Config;
+        var hostConfig = inspect.HostConfig;
+        var networkSettings = inspect.NetworkSettings;
+
+        // Build ports from NetworkSettings.Ports
+        var ports = new List<ContainerPort>();
+        if (networkSettings?.Ports != null)
+        {
+            foreach (var (portKey, bindings) in networkSettings.Ports)
+            {
+                // portKey is like "80/tcp"
+                var parts = portKey.Split('/');
+                if (!int.TryParse(parts[0], out var privatePort)) continue;
+                var protocol = parts.Length > 1 ? parts[1] : "tcp";
+
+                if (bindings is { Count: > 0 })
+                {
+                    foreach (var binding in bindings)
+                    {
+                        int? publicPort = int.TryParse(binding.HostPort, out var hp) ? hp : null;
+                        ports.Add(new ContainerPort
+                        {
+                            PrivatePort = privatePort,
+                            PublicPort = publicPort,
+                            Type = protocol,
+                            Ip = binding.HostIP
+                        });
+                    }
+                }
+                else
+                {
+                    ports.Add(new ContainerPort
+                    {
+                        PrivatePort = privatePort,
+                        Type = protocol
+                    });
+                }
+            }
+        }
+
+        // Build mounts
+        var mounts = inspect.Mounts?.Select(m => new ContainerMount
+        {
+            Type = m.Type ?? "",
+            Source = m.Source ?? "",
+            Destination = m.Destination ?? "",
+            ReadOnly = !m.RW
+        }).ToList() ?? [];
+
+        var labels = config?.Labels != null ? new Dictionary<string, string>(config.Labels) : new Dictionary<string, string>();
+
+        return new ContainerDetail
+        {
+            Id = fullId.Length >= 12 ? fullId[..12] : fullId,
+            FullId = fullId,
+            Name = (inspect.Name ?? "").TrimStart('/'),
+            Image = config?.Image ?? "",
+            ImageId = inspect.Image ?? "",
+            State = (inspect.State?.Status ?? "").ToLowerInvariant(),
+            Status = inspect.State?.Status ?? "",
+            Created = new DateTimeOffset(inspect.Created, TimeSpan.Zero).ToString("o"),
+            Ports = ports,
+            Labels = labels,
+            Networks = networkSettings?.Networks?.Keys.ToList() ?? [],
+            Mounts = mounts,
+            Command = config?.Cmd != null ? string.Join(" ", config.Cmd) : "",
+            Stack = labels.TryGetValue("com.docker.compose.project", out var stack) ? stack : null,
+            Env = config?.Env?.ToList() ?? [],
+            RestartPolicy = hostConfig?.RestartPolicy?.Name.ToString() ?? "",
+            Hostname = config?.Hostname,
+            WorkingDir = config?.WorkingDir,
+            User = config?.User,
+            Platform = inspect.Platform,
+            Driver = hostConfig?.LogConfig?.Type
+        };
     }
 
     private static string? ParseSinceParameter(string? since)

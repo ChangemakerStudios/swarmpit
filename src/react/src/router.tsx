@@ -24,6 +24,9 @@ import SecretCreate from "./pages/Secrets/SecretCreate";
 import ConfigList from "./pages/Configs/ConfigList";
 import ConfigDetail from "./pages/Configs/ConfigDetail";
 import ConfigCreate from "./pages/Configs/ConfigCreate";
+import ContainerList from "./pages/Containers/ContainerList";
+import ContainerDetail from "./pages/Containers/ContainerDetail";
+import ContainerLogs from "./pages/Containers/ContainerLogs";
 import StackList from "./pages/Stacks/StackList";
 import StackCreate from "./pages/Stacks/StackCreate";
 import StackDetail from "./pages/Stacks/StackDetail";
@@ -49,6 +52,9 @@ const router = createBrowserRouter([
       { index: true, element: <DashboardPage /> },
       { path: "nodes", element: <NodeList /> },
       { path: "nodes/:id", element: <NodeDetail /> },
+      { path: "containers", element: <ContainerList /> },
+      { path: "containers/:id", element: <ContainerDetail /> },
+      { path: "containers/:id/logs", element: <ContainerLogs /> },
       { path: "services", element: <ServiceList /> },
       { path: "services/create", element: <ServiceCreate /> },
       { path: "services/:id", element: <ServiceDetail /> },
