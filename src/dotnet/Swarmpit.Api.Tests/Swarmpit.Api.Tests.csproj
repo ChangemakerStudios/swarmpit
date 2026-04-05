@@ -19,7 +19,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Swarmpit.Api\Swarmpit.Api.csproj" />
+    <ProjectReference Include="..\Swarmpit.Core\Swarmpit.Core.csproj" />
+    <ProjectReference Include="..\Swarmpit.Web\Swarmpit.Web.csproj" />
   </ItemGroup>
 
 </Project>
