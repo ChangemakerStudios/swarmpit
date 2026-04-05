@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Box, Typography, LinearProgress, Button } from "@mui/material";
+import { Box, Typography, Button } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DataTable, { type Column } from "../../components/DataTable";
 import { getNetworks, type SwarmNetwork } from "../../api/networks";
@@ -45,10 +45,10 @@ export default function NetworkList() {
           New Network
         </Button>
       </Box>
-      {loading && <LinearProgress />}
       <DataTable
         columns={columns}
         rows={networks}
+        loading={loading}
         onRowClick={(row) => navigate(`/networks/${row.id}`)}
         searchFields={["networkName", "driver"]}
         defaultSortField="networkName"

@@ -80,3 +80,45 @@ export async function getServiceTasks(id: string): Promise<SwarmTask[]> {
 export async function deleteService(id: string): Promise<void> {
   await api.delete(`/api/services/${id}`);
 }
+
+export async function createService(data: any): Promise<any> {
+  const response = await api.post("/api/services", data);
+  return response.data;
+}
+
+export async function updateService(id: string, data: any): Promise<any> {
+  const response = await api.post(`/api/services/${id}`, data);
+  return response.data;
+}
+
+export async function redeployService(id: string, tag?: string): Promise<any> {
+  const response = await api.post(
+    `/api/services/${id}/redeploy${tag ? `?tag=${tag}` : ""}`
+  );
+  return response.data;
+}
+
+export async function rollbackService(id: string): Promise<any> {
+  const response = await api.post(`/api/services/${id}/rollback`);
+  return response.data;
+}
+
+export async function stopService(id: string): Promise<any> {
+  const response = await api.post(`/api/services/${id}/stop`);
+  return response.data;
+}
+
+export async function getServiceLogs(
+  id: string,
+  since?: string
+): Promise<any> {
+  const response = await api.get(
+    `/api/services/${id}/logs${since ? `?since=${since}` : ""}`
+  );
+  return response.data;
+}
+
+export async function getServiceCompose(id: string): Promise<any> {
+  const response = await api.get(`/api/services/${id}/compose`);
+  return response.data;
+}

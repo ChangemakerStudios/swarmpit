@@ -84,7 +84,7 @@ export default function AppLayout() {
   );
 
   return (
-    <Box sx={{ display: "flex" }}>
+    <Box sx={{ display: "flex", height: "100vh", overflow: "hidden" }}>
       <AppBar
         position="fixed"
         sx={{ zIndex: (t) => t.zIndex.drawer + 1 }}
@@ -149,6 +149,8 @@ export default function AppLayout() {
           mt: 8,
           ml: { md: `${DRAWER_WIDTH}px` },
           width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
+          backgroundColor: (t) => t.palette.mode === "light" ? "#f0f0f0" : undefined,
+          overflowY: "auto",
         }}
       >
         <Outlet />

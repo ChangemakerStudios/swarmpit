@@ -1,19 +1,48 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Box,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Typography,
-  Chip,
-  LinearProgress,
-} from "@mui/material";
+import { Box, Typography, Chip } from "@mui/material";
+import DataTable, { type Column } from "../../components/DataTable";
 import { getNodes, type SwarmNode } from "../../api/nodes";
+
+const columns: Column<SwarmNode>[] = [
+  {
+    id: "nodeName",
+    label: "Name",
+    render: (row) => (
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        {row.nodeName}
+        {row.leader && (
+          <Chip label="Leader" size="small" color="primary" />
+        )}
+      </Box>
+    ),
+  },
+  { id: "role", label: "Role" },
+  {
+    id: "state",
+    label: "State",
+    render: (row) => (
+      <Chip
+        label={row.state}
+        size="small"
+        color={row.state === "ready" ? "success" : "default"}
+      />
+    ),
+  },
+  { id: "availability", label: "Availability" },
+  { id: "engine", label: "Engine" },
+  {
+    id: "resources.cpu",
+    label: "CPU",
+    render: (row) => row.resources.cpu.toFixed(1),
+  },
+  {
+    id: "resources.memory",
+    label: "Memory",
+    render: (row) => `${Math.round(row.resources.memory)} MiB`,
+  },
+  { id: "address", label: "Address" },
+];
 
 export default function NodeList() {
   const [nodes, setNodes] = useState<SwarmNode[]>([]);
@@ -31,62 +60,14 @@ export default function NodeList() {
       <Typography variant="h5" sx={{ mb: 2 }}>
         Nodes
       </Typography>
-      {loading && <LinearProgress />}
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell>Role</TableCell>
-              <TableCell>State</TableCell>
-              <TableCell>Availability</TableCell>
-              <TableCell>Engine</TableCell>
-              <TableCell>CPU</TableCell>
-              <TableCell>Memory</TableCell>
-              <TableCell>Address</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {nodes.map((node) => (
-              <TableRow
-                key={node.id}
-                hover
-                sx={{ cursor: "pointer" }}
-                onClick={() => navigate(`/nodes/${node.id}`)}
-              >
-                <TableCell>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    {node.nodeName}
-                    {node.leader && (
-                      <Chip label="Leader" size="small" color="primary" />
-                    )}
-                  </Box>
-                </TableCell>
-                <TableCell>{node.role}</TableCell>
-                <TableCell>
-                  <Chip
-                    label={node.state}
-                    size="small"
-                    color={node.state === "ready" ? "success" : "default"}
-                  />
-                </TableCell>
-                <TableCell>{node.availability}</TableCell>
-                <TableCell>{node.engine}</TableCell>
-                <TableCell>{node.resources.cpu.toFixed(1)}</TableCell>
-                <TableCell>{Math.round(node.resources.memory)} MiB</TableCell>
-                <TableCell>{node.address}</TableCell>
-              </TableRow>
-            ))}
-            {!loading && nodes.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={8} align="center">
-                  No nodes found
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <DataTable
+        columns={columns}
+        rows={nodes}
+        loading={loading}
+        onRowClick={(row) => navigate(`/nodes/${row.id}`)}
+        searchFields={["nodeName", "role", "state", "address"]}
+        defaultSortField="nodeName"
+      />
     </Box>
   );
 }

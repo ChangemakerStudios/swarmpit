@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Box, Typography, LinearProgress, Chip } from "@mui/material";
+import { Box, Typography, Chip } from "@mui/material";
 import DataTable, { type Column } from "../../components/DataTable";
 import { getServices, type SwarmService } from "../../api/services";
 
@@ -63,10 +63,10 @@ export default function ServiceList() {
       <Typography variant="h5" sx={{ mb: 2 }}>
         Services
       </Typography>
-      {loading && <LinearProgress />}
       <DataTable
         columns={columns}
         rows={services}
+        loading={loading}
         onRowClick={(row) => navigate(`/services/${row.id}`)}
         searchFields={["serviceName", "repository.name", "repository.tag"]}
         defaultSortField="serviceName"

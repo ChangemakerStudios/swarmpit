@@ -14,6 +14,7 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
+  TextField,
   Table,
   TableBody,
   TableCell,
@@ -24,10 +25,18 @@ import {
   Link,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
+import ReplayIcon from "@mui/icons-material/Replay";
+import UndoIcon from "@mui/icons-material/Undo";
+import StopIcon from "@mui/icons-material/Stop";
+import SubjectIcon from "@mui/icons-material/Subject";
 import {
   getService,
   getServiceTasks,
   deleteService,
+  redeployService,
+  rollbackService,
+  stopService,
   type SwarmService,
   type SwarmTask,
 } from "../../api/services";
@@ -58,6 +67,10 @@ export default function ServiceDetail() {
   const [tasks, setTasks] = useState<SwarmTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [redeployOpen, setRedeployOpen] = useState(false);
+  const [rollbackOpen, setRollbackOpen] = useState(false);
+  const [stopOpen, setStopOpen] = useState(false);
+  const [redeployTag, setRedeployTag] = useState("");
 
   useEffect(() => {
     if (!id) return;
@@ -75,6 +88,35 @@ export default function ServiceDetail() {
     navigate("/services");
   };
 
+  const handleRedeploy = async () => {
+    if (!id) return;
+    await redeployService(id, redeployTag || undefined);
+    setRedeployOpen(false);
+    setRedeployTag("");
+    // refresh
+    const [svc, t] = await Promise.all([getService(id), getServiceTasks(id)]);
+    setService(svc);
+    setTasks(t);
+  };
+
+  const handleRollback = async () => {
+    if (!id) return;
+    await rollbackService(id);
+    setRollbackOpen(false);
+    const [svc, t] = await Promise.all([getService(id), getServiceTasks(id)]);
+    setService(svc);
+    setTasks(t);
+  };
+
+  const handleStop = async () => {
+    if (!id) return;
+    await stopService(id);
+    setStopOpen(false);
+    const [svc, t] = await Promise.all([getService(id), getServiceTasks(id)]);
+    setService(svc);
+    setTasks(t);
+  };
+
   if (loading) return <LinearProgress />;
   if (!service) return <Typography>Service not found</Typography>;
 
@@ -87,6 +129,43 @@ export default function ServiceDetail() {
           color={service.state === "running" ? "success" : "default"}
         />
         <Box sx={{ flexGrow: 1 }} />
+        <Button
+          variant="outlined"
+          startIcon={<EditIcon />}
+          onClick={() => navigate(`/services/${id}/edit`)}
+        >
+          Edit
+        </Button>
+        <Button
+          variant="outlined"
+          startIcon={<ReplayIcon />}
+          onClick={() => setRedeployOpen(true)}
+        >
+          Redeploy
+        </Button>
+        <Button
+          variant="outlined"
+          startIcon={<UndoIcon />}
+          onClick={() => setRollbackOpen(true)}
+        >
+          Rollback
+        </Button>
+        {service.mode === "replicated" && (
+          <Button
+            variant="outlined"
+            startIcon={<StopIcon />}
+            onClick={() => setStopOpen(true)}
+          >
+            Stop
+          </Button>
+        )}
+        <Button
+          variant="outlined"
+          startIcon={<SubjectIcon />}
+          onClick={() => navigate(`/services/${id}/logs`)}
+        >
+          Logs
+        </Button>
         <Button
           variant="outlined"
           color="error"
@@ -380,6 +459,58 @@ export default function ServiceDetail() {
           <Button onClick={() => setDeleteOpen(false)}>Cancel</Button>
           <Button onClick={handleDelete} color="error" variant="contained">
             Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={redeployOpen} onClose={() => setRedeployOpen(false)}>
+        <DialogTitle>Redeploy Service</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            Redeploy <strong>{service.serviceName}</strong>? Optionally specify a new image tag.
+          </DialogContentText>
+          <TextField
+            label="Tag (optional)"
+            value={redeployTag}
+            onChange={(e) => setRedeployTag(e.target.value)}
+            fullWidth
+            placeholder={service.repository.tag}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRedeployOpen(false)}>Cancel</Button>
+          <Button onClick={handleRedeploy} variant="contained">
+            Redeploy
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={rollbackOpen} onClose={() => setRollbackOpen(false)}>
+        <DialogTitle>Rollback Service</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to rollback <strong>{service.serviceName}</strong> to its previous version?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRollbackOpen(false)}>Cancel</Button>
+          <Button onClick={handleRollback} variant="contained">
+            Rollback
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={stopOpen} onClose={() => setStopOpen(false)}>
+        <DialogTitle>Stop Service</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to stop <strong>{service.serviceName}</strong>? This will scale replicas to 0.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setStopOpen(false)}>Cancel</Button>
+          <Button onClick={handleStop} color="warning" variant="contained">
+            Stop
           </Button>
         </DialogActions>
       </Dialog>

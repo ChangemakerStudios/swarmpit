@@ -7,7 +7,7 @@ namespace Swarmpit.Api.Data.CouchDb;
 
 public class CouchDbClient
 {
-    private static readonly string DbPath = $DbPath;
+    private static readonly string DbPath = $"/{AppConstants.CouchDbName}";
 
     private readonly HttpClient _http;
     private readonly ILogger<CouchDbClient> _logger;
@@ -115,7 +115,7 @@ public class CouchDbClient
             JsonSerializer.Serialize(body, JsonOptions),
             new MediaTypeHeaderValue("application/json"));
 
-        var response = await _http.PostAsync("/{AppConstants.CouchDbName}/_find", content);
+        var response = await _http.PostAsync($"{DbPath}/_find", content);
         response.EnsureSuccessStatusCode();
 
         var json = await response.Content.ReadAsStringAsync();

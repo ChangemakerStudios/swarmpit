@@ -6,7 +6,10 @@ import DashboardPage from "./pages/Dashboard/DashboardPage";
 import NodeList from "./pages/Nodes/NodeList";
 import NodeDetail from "./pages/Nodes/NodeDetail";
 import ServiceList from "./pages/Services/ServiceList";
+import ServiceCreate from "./pages/Services/ServiceCreate";
 import ServiceDetail from "./pages/Services/ServiceDetail";
+import ServiceEdit from "./pages/Services/ServiceEdit";
+import ServiceLogs from "./pages/Services/ServiceLogs";
 import TaskList from "./pages/Tasks/TaskList";
 import TaskDetail from "./pages/Tasks/TaskDetail";
 import NetworkList from "./pages/Networks/NetworkList";
@@ -39,7 +42,10 @@ const router = createBrowserRouter([
       { path: "nodes", element: <NodeList /> },
       { path: "nodes/:id", element: <NodeDetail /> },
       { path: "services", element: <ServiceList /> },
+      { path: "services/create", element: <ServiceCreate /> },
       { path: "services/:id", element: <ServiceDetail /> },
+      { path: "services/:id/edit", element: <ServiceEdit /> },
+      { path: "services/:id/logs", element: <ServiceLogs /> },
       { path: "tasks", element: <TaskList /> },
       { path: "tasks/:id", element: <TaskDetail /> },
       { path: "networks", element: <NetworkList /> },

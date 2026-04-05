@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Box, Typography, LinearProgress, Button } from "@mui/material";
+import { Box, Typography, Button } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DataTable, { type Column } from "../../components/DataTable";
 import { getSecrets, type SwarmSecret } from "../../api/secrets";
@@ -45,10 +45,10 @@ export default function SecretList() {
           New Secret
         </Button>
       </Box>
-      {loading && <LinearProgress />}
       <DataTable
         columns={columns}
         rows={secrets}
+        loading={loading}
         onRowClick={(row) => navigate(`/secrets/${row.id}`)}
         searchFields={["secretName"]}
         defaultSortField="secretName"

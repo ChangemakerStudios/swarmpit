@@ -10,6 +10,7 @@ import {
   TablePagination,
   TableSortLabel,
   TextField,
+  LinearProgress,
   List,
   ListItem,
   ListItemText,
@@ -36,6 +37,7 @@ interface DataTableProps<T> {
   searchFields?: string[];
   defaultSortField?: string;
   defaultSortDirection?: "asc" | "desc";
+  loading?: boolean;
 }
 
 function getNestedValue(obj: any, path: string): any {
@@ -49,6 +51,7 @@ export default function DataTable<T extends Record<string, any>>({
   searchFields = [],
   defaultSortField,
   defaultSortDirection = "asc",
+  loading = false,
 }: DataTableProps<T>) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -96,6 +99,9 @@ export default function DataTable<T extends Record<string, any>>({
 
   return (
     <Box>
+      <Box sx={{ height: 4, mb: 1 }}>
+        {loading && <LinearProgress />}
+      </Box>
       <TextField
         fullWidth
         size="small"
@@ -137,6 +143,9 @@ export default function DataTable<T extends Record<string, any>>({
                       const val = col.render
                         ? col.render(row)
                         : getNestedValue(row, col.id);
+                      if (typeof val === "object" && val !== null) {
+                        return `${col.label}: ${(val as any)?.props?.label ?? "-"}`;
+                      }
                       return `${col.label}: ${val ?? "-"}`;
                     })
                     .join(" | ")}

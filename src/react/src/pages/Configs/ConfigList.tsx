@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Box, Typography, LinearProgress, Button } from "@mui/material";
+import { Box, Typography, Button } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DataTable, { type Column } from "../../components/DataTable";
 import { getConfigs, type SwarmConfig } from "../../api/configs";
@@ -45,10 +45,10 @@ export default function ConfigList() {
           New Config
         </Button>
       </Box>
-      {loading && <LinearProgress />}
       <DataTable
         columns={columns}
         rows={configs}
+        loading={loading}
         onRowClick={(row) => navigate(`/configs/${row.id}`)}
         searchFields={["configName"]}
         defaultSortField="configName"

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Box, Typography, LinearProgress, Chip } from "@mui/material";
+import { Box, Typography, Chip } from "@mui/material";
 import DataTable, { type Column } from "../../components/DataTable";
 import { getTasks, type SwarmTask } from "../../api/tasks";
 import { timeAgo } from "../../utils/time";
@@ -58,10 +58,10 @@ export default function TaskList() {
       <Typography variant="h5" sx={{ mb: 2 }}>
         Tasks
       </Typography>
-      {loading && <LinearProgress />}
       <DataTable
         columns={columns}
         rows={tasks}
+        loading={loading}
         onRowClick={(row) => navigate(`/tasks/${row.id}`)}
         searchFields={["taskName", "serviceName", "nodeName", "state"]}
         defaultSortField="updatedAt"
