@@ -45,6 +45,7 @@ public static class TaskMapper
                 Error = task.Status?.Err
             },
             DesiredState = task.DesiredState.ToString(),
+            ServiceId = serviceId,
             ServiceName = serviceName ?? "",
             NodeId = nodeId,
             NodeName = nodeName ?? "",

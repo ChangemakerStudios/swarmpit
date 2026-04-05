@@ -28,6 +28,7 @@ export interface Column<T> {
   render?: (row: T) => ReactNode;
   align?: "left" | "right";
   minWidth?: number;
+  width?: string | number;
 }
 
 interface DataTableProps<T> {
@@ -167,14 +168,17 @@ export default function DataTable<T extends Record<string, any>>({
         </Paper>
       ) : (
         <TableContainer component={Paper}>
-          <Table>
+          <Table sx={{ tableLayout: "fixed" }}>
             <TableHead>
               <TableRow>
                 {columns.map((col) => (
                   <TableCell
                     key={col.id}
                     align={col.align ?? "left"}
-                    sx={col.minWidth ? { minWidth: col.minWidth } : undefined}
+                    sx={{
+                      ...(col.minWidth ? { minWidth: col.minWidth } : {}),
+                      ...(col.width ? { width: col.width } : {}),
+                    }}
                   >
                     <TableSortLabel
                       active={sortField === col.id}
@@ -196,7 +200,15 @@ export default function DataTable<T extends Record<string, any>>({
                   onClick={() => onRowClick?.(row)}
                 >
                   {columns.map((col) => (
-                    <TableCell key={col.id} align={col.align ?? "left"}>
+                    <TableCell
+                      key={col.id}
+                      align={col.align ?? "left"}
+                      sx={{
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
                       {col.render
                         ? col.render(row)
                         : String(getNestedValue(row, col.id) ?? "-")}

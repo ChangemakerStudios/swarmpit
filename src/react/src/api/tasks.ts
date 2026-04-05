@@ -5,6 +5,7 @@ export interface SwarmTask {
   taskName: string;
   state: string;
   desiredState: string;
+  serviceId: string;
   serviceName: string;
   nodeId: string;
   nodeName: string;

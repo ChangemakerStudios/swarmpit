@@ -15,13 +15,6 @@ import {
   DialogContentText,
   DialogActions,
   TextField,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
   Link,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -41,6 +34,7 @@ import {
   type SwarmTask,
 } from "../../api/services";
 import { formatDate } from "../../utils/time";
+import DataTable from "../../components/DataTable";
 
 function InfoItem({ label, value }: { label: string; value?: string | number | null }) {
   return (
@@ -200,35 +194,16 @@ export default function ServiceDetail() {
 
         {service.ports.length > 0 && (
           <Grid size={{ xs: 12, md: 6 }}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Ports
-                </Typography>
-                <TableContainer>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Container Port</TableCell>
-                        <TableCell>Host Port</TableCell>
-                        <TableCell>Protocol</TableCell>
-                        <TableCell>Mode</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {service.ports.map((p, i) => (
-                        <TableRow key={i}>
-                          <TableCell>{p.containerPort}</TableCell>
-                          <TableCell>{p.hostPort}</TableCell>
-                          <TableCell>{p.protocol}</TableCell>
-                          <TableCell>{p.mode}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </CardContent>
-            </Card>
+            <Typography variant="h6" gutterBottom>Ports</Typography>
+            <DataTable
+              columns={[
+                { id: "containerPort", label: "Container Port" },
+                { id: "hostPort", label: "Host Port" },
+                { id: "protocol", label: "Protocol" },
+                { id: "mode", label: "Mode" },
+              ]}
+              rows={service.ports}
+            />
           </Grid>
         )}
 
@@ -259,65 +234,29 @@ export default function ServiceDetail() {
 
         {service.mounts && service.mounts.length > 0 && (
           <Grid size={{ xs: 12, md: 6 }}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Mounts
-                </Typography>
-                <TableContainer>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Type</TableCell>
-                        <TableCell>Source</TableCell>
-                        <TableCell>Target</TableCell>
-                        <TableCell>Read Only</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {service.mounts.map((m, i) => (
-                        <TableRow key={i}>
-                          <TableCell>{m.type}</TableCell>
-                          <TableCell>{m.source}</TableCell>
-                          <TableCell>{m.target}</TableCell>
-                          <TableCell>{m.readOnly ? "Yes" : "No"}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </CardContent>
-            </Card>
+            <Typography variant="h6" gutterBottom>Mounts</Typography>
+            <DataTable
+              columns={[
+                { id: "type", label: "Type" },
+                { id: "source", label: "Source" },
+                { id: "target", label: "Target" },
+                { id: "readOnly", label: "Read Only", render: (row: any) => row.readOnly ? "Yes" : "No" },
+              ]}
+              rows={service.mounts}
+            />
           </Grid>
         )}
 
         {service.environment && service.environment.length > 0 && (
           <Grid size={{ xs: 12, md: 6 }}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Environment Variables
-                </Typography>
-                <TableContainer>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Name</TableCell>
-                        <TableCell>Value</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {service.environment.map((e, i) => (
-                        <TableRow key={i}>
-                          <TableCell>{e.name}</TableCell>
-                          <TableCell>{e.value}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </CardContent>
-            </Card>
+            <Typography variant="h6" gutterBottom>Environment Variables</Typography>
+            <DataTable
+              columns={[
+                { id: "name", label: "Name" },
+                { id: "value", label: "Value" },
+              ]}
+              rows={service.environment}
+            />
           </Grid>
         )}
 
@@ -389,61 +328,23 @@ export default function ServiceDetail() {
         )}
 
         <Grid size={{ xs: 12 }}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Tasks
-              </Typography>
-              <TableContainer>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Task</TableCell>
-                      <TableCell>Node</TableCell>
-                      <TableCell>State</TableCell>
-                      <TableCell>Desired State</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {tasks.map((t) => (
-                      <TableRow
-                        key={t.id}
-                        hover
-                        sx={{ cursor: "pointer" }}
-                        onClick={() => navigate(`/tasks/${t.id}`)}
-                      >
-                        <TableCell>{t.taskName}</TableCell>
-                        <TableCell>
-                          <Link
-                            component={RouterLink}
-                            to={`/nodes/${t.nodeId}`}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {t.nodeName}
-                          </Link>
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={t.state}
-                            size="small"
-                            color={taskStateColor(t.state)}
-                          />
-                        </TableCell>
-                        <TableCell>{t.desiredState}</TableCell>
-                      </TableRow>
-                    ))}
-                    {tasks.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={4} align="center">
-                          No tasks
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </CardContent>
-          </Card>
+          <Typography variant="h6" gutterBottom>Tasks</Typography>
+          <DataTable
+            columns={[
+              { id: "taskName", label: "Task" },
+              { id: "nodeName", label: "Node", render: (row: any) => (
+                <Link component={RouterLink} to={`/nodes/${row.nodeId}`} onClick={(e: any) => e.stopPropagation()}>
+                  {row.nodeName}
+                </Link>
+              )},
+              { id: "state", label: "State", render: (row: any) => (
+                <Chip label={row.state} size="small" color={taskStateColor(row.state)} />
+              )},
+              { id: "desiredState", label: "Desired State" },
+            ]}
+            rows={tasks}
+            onRowClick={(row: any) => navigate(`/tasks/${row.id}`)}
+          />
         </Grid>
       </Grid>
 

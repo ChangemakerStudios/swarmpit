@@ -88,7 +88,7 @@ export default function TaskDetail() {
                   Service
                 </Typography>
                 <Typography variant="body1">
-                  <Link component={RouterLink} to={`/services/${task.serviceName}`}>
+                  <Link component={RouterLink} to={`/services/${task.serviceId}`}>
                     {task.serviceName}
                   </Link>
                 </Typography>

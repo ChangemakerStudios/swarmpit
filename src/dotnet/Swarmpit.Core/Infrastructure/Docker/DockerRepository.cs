@@ -53,11 +53,12 @@ public class DockerRepository(DockerClientFactory docker) :
             return null;
         }
 
+        var actualId = svc.ID;
         var networks = await client.Networks.ListNetworksAsync();
         var tasks = await client.Tasks.ListAsync();
         var nodes = await client.Swarm.ListNodesAsync();
 
-        var serviceTasks = tasks.Where(t => t.ServiceID == id).ToList();
+        var serviceTasks = tasks.Where(t => t.ServiceID == actualId).ToList();
         var nodeCount = CountActiveNodes(nodes);
 
         var service = ServiceMapper.ToSwarmService(svc, networks);
@@ -350,6 +351,10 @@ public class DockerRepository(DockerClientFactory docker) :
     {
         var client = docker.GetClient();
 
+        // Resolve actual service ID (input could be name or ID)
+        var svc = await client.Swarm.InspectServiceAsync(id);
+        var actualId = svc.ID;
+
         var tasks = await client.Tasks.ListAsync();
         var services = await client.Swarm.ListServicesAsync();
         var nodes = await client.Swarm.ListNodesAsync();
@@ -358,7 +363,7 @@ public class DockerRepository(DockerClientFactory docker) :
         var nodeNames = nodes.ToDictionary(n => n.ID ?? "", n => n.Description?.Hostname ?? "");
 
         return tasks
-            .Where(t => t.ServiceID == id)
+            .Where(t => t.ServiceID == actualId)
             .Select(t => TaskMapper.ToSwarmTask(t, serviceNames, nodeNames))
             .ToList();
     }

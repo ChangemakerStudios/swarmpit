@@ -11,6 +11,7 @@ public class SwarmTask
     public string State { get; set; } = "";
     public TaskStatus Status { get; set; } = new();
     public string DesiredState { get; set; } = "";
+    public string ServiceId { get; set; } = "";
     public string ServiceName { get; set; } = "";
     public string NodeId { get; set; } = "";
     public string NodeName { get; set; } = "";
