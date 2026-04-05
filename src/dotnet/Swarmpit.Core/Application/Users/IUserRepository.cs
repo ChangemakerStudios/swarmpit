@@ -5,7 +5,11 @@ public interface IUserRepository
     Task<UserDoc?> GetByUsernameAsync(string username);
     Task<List<UserDoc>> GetAllAsync();
     Task<string> CreateAsync(string username, string password, string role, string? email = null);
+    Task UpdateAsync(string username, string? password, string? role, string? email);
+    Task DeleteAsync(string username);
     Task<bool> VerifyPasswordAsync(string username, string password);
+    Task<string> GenerateApiTokenAsync(string username);
+    Task RevokeApiTokenAsync(string username);
 }
 
 public class UserDoc

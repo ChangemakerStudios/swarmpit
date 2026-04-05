@@ -17,6 +17,7 @@ import { getVolumes } from "../../api/volumes";
 import { getSecrets } from "../../api/secrets";
 import { getConfigs } from "../../api/configs";
 import { getTasks } from "../../api/tasks";
+import { getUsers } from "../../api/users";
 
 interface CountCard {
   label: string;
@@ -36,6 +37,7 @@ export default function DashboardPage() {
     { label: "Volumes", path: "/volumes", count: null },
     { label: "Secrets", path: "/secrets", count: null },
     { label: "Configs", path: "/configs", count: null },
+    { label: "Users", path: "/users", count: null },
   ]);
 
   useEffect(() => {
@@ -48,8 +50,9 @@ export default function DashboardPage() {
       getVolumes().then((r) => r.length),
       getSecrets().then((r) => r.length),
       getConfigs().then((r) => r.length),
+      getUsers().then((r) => r.length),
     ])
-      .then(([containers, services, tasks, nodes, networks, volumes, secrets, configs]) => {
+      .then(([containers, services, tasks, nodes, networks, volumes, secrets, configs, users]) => {
         setCounts([
           { label: "Containers", path: "/containers", count: containers },
           { label: "Services", path: "/services", count: services },
@@ -59,6 +62,7 @@ export default function DashboardPage() {
           { label: "Volumes", path: "/volumes", count: volumes },
           { label: "Secrets", path: "/secrets", count: secrets },
           { label: "Configs", path: "/configs", count: configs },
+          { label: "Users", path: "/users", count: users },
         ]);
       })
       .catch(() => {})

@@ -38,6 +38,78 @@ public class CouchDbUserRepository(CouchDbClient db) : IUserRepository
         return result.Id;
     }
 
+    public async Task UpdateAsync(string username, string? password, string? role, string? email)
+    {
+        var user = await GetByUsernameAsync(username)
+            ?? throw new InvalidOperationException($"User '{username}' not found");
+
+        var updatedPassword = password != null ? HashPassword(password) : user.Password;
+        var updatedRole = role ?? user.Role;
+        var updatedEmail = email ?? user.Email;
+
+        await db.UpdateDocAsync(user.Id, user.Rev, new
+        {
+            type = "user",
+            username = user.Username,
+            password = updatedPassword,
+            role = updatedRole,
+            email = updatedEmail,
+            apiToken = user.ApiToken != null ? new { jti = user.ApiToken.Jti } : null
+        });
+    }
+
+    public async Task DeleteAsync(string username)
+    {
+        var user = await GetByUsernameAsync(username)
+            ?? throw new InvalidOperationException($"User '{username}' not found");
+
+        if (user.IsAdmin)
+        {
+            var allUsers = await GetAllAsync();
+            var adminCount = allUsers.Count(u => u.IsAdmin);
+            if (adminCount <= 1)
+                throw new InvalidOperationException("Cannot delete the last admin user");
+        }
+
+        await db.DeleteDocAsync(user.Id, user.Rev);
+    }
+
+    public async Task<string> GenerateApiTokenAsync(string username)
+    {
+        var user = await GetByUsernameAsync(username)
+            ?? throw new InvalidOperationException($"User '{username}' not found");
+
+        var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+
+        await db.UpdateDocAsync(user.Id, user.Rev, new
+        {
+            type = "user",
+            username = user.Username,
+            password = user.Password,
+            role = user.Role,
+            email = user.Email,
+            apiToken = new { jti = token }
+        });
+
+        return token;
+    }
+
+    public async Task RevokeApiTokenAsync(string username)
+    {
+        var user = await GetByUsernameAsync(username)
+            ?? throw new InvalidOperationException($"User '{username}' not found");
+
+        await db.UpdateDocAsync(user.Id, user.Rev, new
+        {
+            type = "user",
+            username = user.Username,
+            password = user.Password,
+            role = user.Role,
+            email = user.Email,
+            apiToken = (object?)null
+        });
+    }
+
     public async Task<bool> VerifyPasswordAsync(string username, string password)
     {
         var user = await GetByUsernameAsync(username);

@@ -35,6 +35,10 @@ import RegistryList from "./pages/Registries/RegistryList";
 import RegistryCreate from "./pages/Registries/RegistryCreate";
 import RegistryDetail from "./pages/Registries/RegistryDetail";
 import RegistryEdit from "./pages/Registries/RegistryEdit";
+import UserList from "./pages/Users/UserList";
+import UserCreate from "./pages/Users/UserCreate";
+import UserDetail from "./pages/Users/UserDetail";
+import UserEdit from "./pages/Users/UserEdit";
 
 const router = createBrowserRouter([
   {
@@ -82,18 +86,12 @@ const router = createBrowserRouter([
       { path: "registries/create", element: <RegistryCreate /> },
       { path: "registries/:id", element: <RegistryDetail /> },
       { path: "registries/:id/edit", element: <RegistryEdit /> },
-      { path: "users", element: <PlaceholderPage title="Users" /> },
+      { path: "users", element: <UserList /> },
+      { path: "users/create", element: <UserCreate /> },
+      { path: "users/:username", element: <UserDetail /> },
+      { path: "users/:username/edit", element: <UserEdit /> },
     ],
   },
 ]);
-
-function PlaceholderPage({ title }: { title: string }) {
-  return (
-    <div>
-      <h2>{title}</h2>
-      <p>Coming in Phase 3+</p>
-    </div>
-  );
-}
 
 export default router;
