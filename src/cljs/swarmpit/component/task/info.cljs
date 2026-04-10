@@ -105,6 +105,61 @@
       (str (common/render-capacity memoryLimit true) " ram")
       (str "graph-memory"))))
 
+(defn health-status-label [status]
+  (case status
+    "healthy" (label/base status "green")
+    "unhealthy" (label/base status "red")
+    "starting" (label/base status "pulsing")
+    (label/base (or status "none") "grey")))
+
+(rum/defc form-health < rum/static [{:keys [status failingStreak log]}]
+  (comp/card
+    {:className "Swarmpit-form-card"}
+    (comp/card-header
+      {:title     "Healthcheck"
+       :subheader (health-status-label status)})
+    (comp/card-content
+      {:className "Swarmpit-table-card-content"}
+      (form/item-main "Status" status false)
+      (form/item-main "Failing streak" (str failingStreak))
+      (when (seq log)
+        (comp/box
+          {}
+          (comp/divider {})
+          (comp/box
+            {:style {:padding "16px 0 8px 0"}}
+            (comp/typography {:variant "subtitle2"} "Health Log"))
+          (comp/table
+            {:size "small"}
+            (comp/table-head
+              {}
+              (comp/table-row
+                {}
+                (comp/table-cell {} "Time")
+                (comp/table-cell {} "Exit Code")
+                (comp/table-cell {} "Output")))
+            (comp/table-body
+              {}
+              (map-indexed
+                (fn [idx {:keys [start exitCode output]}]
+                  (comp/table-row
+                    {:key (str "health-log-" idx)}
+                    (comp/table-cell {} (form/item-date start))
+                    (comp/table-cell
+                      {}
+                      (if (zero? exitCode)
+                        (label/base "0" "green")
+                        (label/base (str exitCode) "red")))
+                    (comp/table-cell
+                      {:style {:maxWidth   "400px"
+                               :overflow   "hidden"
+                               :whiteSpace "pre-wrap"
+                               :wordBreak  "break-all"
+                               :fontFamily "monospace"
+                               :fontSize   "0.8rem"}}
+                      (str output))))
+                (reverse log)))))))))
+
 (rum/defc form-general < rum/static [{:keys [id taskName nodeName state status createdAt updatedAt repository serviceName logdriver stats]}]
   (comp/card
     {:className "Swarmpit-form-card"}
@@ -207,6 +262,11 @@
               {:item true
                :xs   12}
               (form-general task))
+            (when (:health task)
+              (comp/grid
+                {:item true
+                 :xs   12}
+                (form-health (:health task))))
             (comp/grid
               {:item true
                :xs   12}

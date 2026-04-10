@@ -38,23 +38,33 @@
             :used  number?
             :total number?}})
 
+(def health-log-entry
+  {:start    string?
+   :end      string?
+   :exitCode number?
+   :output   string?})
+
 (def task
-  {:id           string?
-   :taskName     string?
-   :version      number?
-   :createdAt    string?
-   :updatedAt    string?
-   :repository   {:image       string?
-                  :imageDigest string?}
-   :state        string?
-   :status       {:error string?}
-   :desiredState string?
-   :logdriver    string?
-   :serviceName  string?
-   :resources    {:reservation resources
-                  :limit       resources}
-   :nodeId       string?
-   :nodeName     string?})
+  {:id                    string?
+   :taskName              string?
+   :version               number?
+   :createdAt             string?
+   :updatedAt             string?
+   :repository            {:image       string?
+                           :imageDigest string?}
+   :state                 string?
+   :status                {:error string?}
+   :desiredState          string?
+   :logdriver             string?
+   :serviceName           string?
+   :resources             {:reservation resources
+                           :limit       resources}
+   :nodeId                string?
+   :nodeName              string?
+   (ds/opt :containerId)  string?
+   (ds/opt :health)       {:status        string?
+                           :failingStreak number?
+                           :log           [health-log-entry]}})
 
 (def task-stats
   {:task    string?

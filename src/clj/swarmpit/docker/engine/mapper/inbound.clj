@@ -155,7 +155,8 @@
       :serviceName (or service-name service-id)
       :resources (->service-resources (get-in service [:Spec :TaskTemplate]))
       :nodeId node-id
-      :nodeName (or node-name node-id))))
+      :nodeName (or node-name node-id)
+      :containerId (get-in task [:Status :ContainerStatus :ContainerID]))))
 
 (defn ->tasks
   [tasks nodes services info]
@@ -531,3 +532,17 @@
                {container-id {:node (:NodeID %)
                               :task (:ID %)}}))
           service-tasks)))
+
+(defn ->container-health
+  [container-inspect]
+  (let [health (get-in container-inspect [:State :Health])]
+    (when health
+      {:status        (:Status health)
+       :failingStreak (:FailingStreak health)
+       :log           (->> (:Log health)
+                           (map (fn [entry]
+                                  {:start    (:Start entry)
+                                   :end      (:End entry)
+                                   :exitCode (:ExitCode entry)
+                                   :output   (:Output entry)}))
+                           (into []))})))

@@ -111,6 +111,14 @@
                                                (x-auth auth-config))}})
       :body))
 
+;; Container
+
+(defn container-inspect
+  [id]
+  (-> (execute {:method :GET
+                :api    (str "/containers/" id "/json")})
+      :body))
+
 ;; Task
 
 (defn tasks

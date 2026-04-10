@@ -785,13 +785,25 @@
 
 (def tasks-memo (memo/ttl tasks :ttl/threshold 1000))
 
+(defn- task-health
+  "Fetch container health data for a task.
+   Returns nil if the container is not available locally or has no healthcheck."
+  [container-id]
+  (when container-id
+    (try
+      (dmi/->container-health (dc/container-inspect container-id))
+      (catch Exception _ nil))))
+
 (defn task
   [task-id]
-  (-> (dmi/->task (dc/task task-id)
-                  (dc/nodes)
-                  (dc/services)
-                  (dc/info))
-      (task-stats)))
+  (let [t (-> (dmi/->task (dc/task task-id)
+                          (dc/nodes)
+                          (dc/services)
+                          (dc/info))
+              (task-stats))
+        health (task-health (:containerId t))]
+    (cond-> t
+      health (assoc :health health))))
 
 ;;; Service API
 
