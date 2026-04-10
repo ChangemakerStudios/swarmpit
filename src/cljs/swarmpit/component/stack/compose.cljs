@@ -75,9 +75,9 @@
 (defn- form-skip-image-resolve [value]
   (comp/form-control-label
     {:control (comp/checkbox
-                {:checked  value
-                 :onChange #(state/update-value [:skipImageResolve] (-> % .-target .-checked) state/form-value-cursor)})
-     :label   "Skip image resolution"}))
+                {:checked  (not value)
+                 :onChange #(state/update-value [:skipImageResolve] (not (-> % .-target .-checked)) state/form-value-cursor)})
+     :label   "Resolve images"}))
 
 (defn- update-stack-handler
   [name]
