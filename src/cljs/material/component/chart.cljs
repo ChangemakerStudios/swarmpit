@@ -34,6 +34,6 @@
                        :position "center"
                        :fill     (label-fill)}
                       (when (= "Loading" label)
-                        {:fill "#ccc"})) label))
+                        {:fill (if (= "dark" (comp/current-theme-mode)) "#777" "#ccc")})) label))
            (when tooltip
              (comp/tooltip-chart tooltip))))])))
