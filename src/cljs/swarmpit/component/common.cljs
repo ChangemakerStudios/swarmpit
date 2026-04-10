@@ -201,7 +201,7 @@
                           hover-value)))})
       (chart/pie
         [{:value 100
-          :color "#ccc"}]
+          :color (if (= "dark" (comp/current-theme-mode)) "#3a3a3a" "#ccc")}]
         "Loading"
         "Swarmpit-stat-skeleton"
         id
