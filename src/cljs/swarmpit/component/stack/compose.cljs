@@ -131,9 +131,9 @@
 
 (defn- init-form-value
   [name]
-  (state/set-value {:name              name
-                    :spec              {:compose ""}
-                    :skipImageResolve  false} state/form-value-cursor))
+  (state/set-value {:name             name
+                    :spec             {:compose ""}
+                    :skipImageResolve false} state/form-value-cursor))
 
 (def mixin-init-form
   (mixin/init-form
@@ -175,7 +175,8 @@
                 #(update-stack-handler name)
                 processing?
                 false
-                {:startIcon (comp/svg {} icon/rocket-path)}))))]])))
+                {:startIcon (comp/svg {} icon/rocket-path)})
+              (form-skip-image-resolve skipImageResolve))))]])))
 
 (rum/defc form < rum/reactive
                  mixin-init-form [_]

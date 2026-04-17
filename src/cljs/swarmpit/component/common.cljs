@@ -1,7 +1,7 @@
 (ns swarmpit.component.common
   (:refer-clojure :exclude [list])
   (:require [material.icon :as icon]
-            [material.components :as comp]
+            [material.components :as comp :refer [current-theme-mode]]
             [material.component.chart :as chart]
             [material.component.list.basic :as list]
             [swarmpit.component.state :as state]
@@ -23,12 +23,28 @@
          (take 7)
          (apply str))))
 
-(rum/defc title-logo < rum/static []
-  [:a {:target "_blank"
-       :href   swarmpit-home-page}
-   [:img {:src    "img/logo.svg"
-          :height "50"
-          :width  "200"}]])
+(defn- instance-font-size [name]
+  (let [len (count name)]
+    (cond
+      (<= len 8)  "1.5rem"
+      (<= len 12) "1.25rem"
+      (<= len 16) "1rem"
+      :else       "0.85rem")))
+
+(rum/defc title-logo < rum/static [instance-name]
+  [:a.Swarmpit-title-link {:target "_blank"
+                           :href   swarmpit-home-page}
+   (if (and instance-name (not (clojure.string/blank? instance-name)))
+     [:span.Swarmpit-title-custom
+      [:img {:src    "img/icon.svg"
+             :height "50"
+             :width  "50"}]
+      [:span.Swarmpit-title-instance
+       {:style {:fontSize (instance-font-size instance-name)}}
+       instance-name]]
+     [:img {:src    "img/logo.svg"
+            :height "50"
+            :width  "200"}])])
 
 (rum/defc title-version < rum/static [version]
   (when version
@@ -47,27 +63,26 @@
     {:key "nothing-match-text"} "Nothing matches this filter."))
 
 (rum/defc list-filters < rum/static [filterOpen? comp]
-  (comp/mui
-    (comp/swipeable-drawer
-      {:anchor "right"
-       :open   filterOpen?}
+  (comp/swipeable-drawer
+    {:anchor "right"
+     :open   filterOpen?}
+    (comp/box
+      {:className "Swarmpit-filter"}
       (comp/box
-        {:className "Swarmpit-filter"}
-        (comp/box
-          {:className "Swarmpit-filter-actions"}
-          (comp/button
-            {:onClick   #(state/update-value [:filterOpen?] false state/form-state-cursor)
-             :startIcon (icon/close {})
-             :variant   "text"
-             :color     "default"} "Close"))
-        comp
-        (comp/box {:className "grow"})
+        {:className "Swarmpit-filter-actions"}
         (comp/button
-          {:onClick   #(state/update-value [:filter] nil state/form-state-cursor)
-           :startIcon (comp/svg icon/trash-path)
-           :fullWidth true
-           :variant   "contained"
-           :color     "default"} "Clear")))))
+          {:onClick   #(state/update-value [:filterOpen?] false state/form-state-cursor)
+           :startIcon (icon/close {})
+           :variant   "text"
+           :color     "primary"} "Close"))
+      comp
+      (comp/box {:className "grow"})
+      (comp/button
+        {:onClick   #(state/update-value [:filter] nil state/form-state-cursor)
+         :startIcon (comp/svg icon/trash-path)
+         :fullWidth true
+         :variant   "contained"
+         :color     "default"} "Clear"))))
 
 (rum/defc list < rum/reactive
   [title items filtered-items render-metadata onclick-handler toolbar-render-metadata]
@@ -164,28 +179,31 @@
     "-"))
 
 (defn resource-used [usage value]
-  (cond
-    (< usage 75) {:name  "used"
-                  :value usage
-                  :hover value
-                  :color "#52B359"}
-    (> usage 90) {:name  "used"
-                  :value usage
-                  :hover value
-                  :color "#d32f2f"}
-    :else {:name  "used"
-           :value usage
-           :hover value
-           :color "#ffa000"}))
+  (let [dark? (= "dark" (current-theme-mode))]
+    (cond
+      (< usage 75) {:name  "used"
+                    :value usage
+                    :hover value
+                    :color (if dark? "#1b5e20" "#52B359")}
+      (> usage 90) {:name  "used"
+                    :value usage
+                    :hover value
+                    :color (if dark? "#c62828" "#d32f2f")}
+      :else {:name  "used"
+             :value usage
+             :hover value
+             :color (if dark? "#e65100" "#ffa000")})))
 
-(rum/defc resource-pie < rum/static
+(rum/defc resource-pie < rum/reactive
   [{:keys [usage value limit type]} label id]
-  (let [usage (or usage (* (/ value limit) 100))
+  (let [mode (rum/react comp/theme-mode)
+        usage (or usage (* (/ value limit) 100))
+        dark? (= "dark" mode)
         data [(resource-used usage value)
               {:name  "free"
                :value (- 100 usage)
                :hover (- limit value)
-               :color (if (= "dark" (comp/current-theme-mode)) "#3a3a3a" "#ccc")}]]
+               :color (if dark? "#3a3a3a" "#ccc")}]]
     (if limit
       (chart/pie
         data
@@ -201,18 +219,19 @@
                           hover-value)))})
       (chart/pie
         [{:value 100
-          :color (if (= "dark" (comp/current-theme-mode)) "#3a3a3a" "#ccc")}]
+          :color (if dark? "#3a3a3a" "#ccc")}]
         "Loading"
         "Swarmpit-stat-skeleton"
         id
         nil))))
 
-(rum/defc resource-pie-empty < rum/static
+(rum/defc resource-pie-empty < rum/reactive
   [id]
-  (chart/pie
-    [{:value 100
-      :color "#ccc"}]
-    "-"
-    "Swarmpit-stat-graph"
-    id
-    nil))
+  (let [dark? (= "dark" (rum/react comp/theme-mode))]
+    (chart/pie
+      [{:value 100
+        :color (if dark? "#3a3a3a" "#ccc")}]
+      "-"
+      "Swarmpit-stat-graph"
+      id
+      nil)))

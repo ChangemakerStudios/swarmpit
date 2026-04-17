@@ -71,6 +71,13 @@
                      (message/error
                        (str "Failed to generate compose file from service " service-name)))})))
 
+(defn- form-skip-image-resolve [value]
+  (comp/form-control-label
+    {:control (comp/checkbox
+                {:checked  value
+                 :onChange #(state/update-value [:skipImageResolve] (-> % .-target .-checked) state/form-value-cursor)})
+     :label   "without image resolution"}))
+
 (defn- create-stack-handler
   []
   (let [{:keys [name] :as form-value} (state/get-value state/form-value-cursor)]
@@ -120,9 +127,9 @@
 
 (defn- init-form-value
   []
-  (state/set-value {:name              ""
-                    :spec              {:compose ""}
-                    :skipImageResolve  false} state/form-value-cursor))
+  (state/set-value {:name             ""
+                    :spec             {:compose ""}
+                    :skipImageResolve false} state/form-value-cursor))
 
 (def mixin-init-form
   (mixin/init-form
@@ -168,6 +175,7 @@
                   processing?
                   saving?
                   {:startIcon (comp/svg {} icon/rocket-path)})
+                (form-skip-image-resolve skipImageResolve)
                 (composite/progress-button
                   "Save"
                   save-stack-handler

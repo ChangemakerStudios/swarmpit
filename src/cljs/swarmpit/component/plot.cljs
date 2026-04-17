@@ -34,17 +34,21 @@
        :height      300
        :plot_bgcolor  bg-color
        :paper_bgcolor bg-color
-       :font        {:color text-color}
+       :font          {:color text-color}
        :margin      {:l   (if mobile? 50 70)
                      :r   (if mobile? 50 70)
                      :t   70
                      :b   70
                      :pad 0}
        :xaxis       {:range     [now-1-hour now]
-                     :gridcolor grid-color}
+                     :gridcolor grid-color
+                     :linecolor grid-color
+                     :tickfont  {:color text-color}}
        :yaxis       {:tickformat ".2f"
                      :rangemode  "tozero"
-                     :gridcolor  grid-color}
+                     :gridcolor  grid-color
+                     :linecolor  grid-color
+                     :tickfont   {:color text-color}}
        :legend      {:font {:color text-color}}}
       options)))
 
@@ -55,7 +59,7 @@
       :y           (y-key stats-ts)
       :connectgaps false
       :fill        "tozeroy"
-      :line        {:color "#52B359"}
+      :line        {:color (if (dark-mode?) "#1b5e20" "#52B359")}
       :type        "scatter"
       :mode        "lines"}]
     (default-layout stats-ts options)))
@@ -78,5 +82,5 @@
                    :type        "scatter"
                    :mode        "lines"}
                   (when (zero? i)
-                    {:line {:color "#52B359"}})))) stats-ts))
+                    {:line {:color (if (dark-mode?) "#1b5e20" "#52B359")}})))) stats-ts))
     (default-layout (first stats-ts) options)))

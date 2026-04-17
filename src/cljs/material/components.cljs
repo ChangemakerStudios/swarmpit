@@ -3,6 +3,7 @@
   (:require ["@material-ui/core"]
             ["react-window"]
             [cljsjs.recharts]
+            [rum.core :as rum]
             [sablono.core :refer-macros [html]]
             [material.factory :refer [create-mui-cmp create-element create-js-element]]))
 
@@ -213,18 +214,17 @@
 ;; Dark theme props
 (def dark-theme-props
   {:palette     {:type       "dark"
-                 :primary    {:main         "#957ed1"
-                              :light        "#c4b0e8"
-                              :dark         "#65519f"
+                 :primary    {:main         "#65519f"
+                              :light        "#957ed1"
+                              :dark         "#362870"
                               :contrastText "#fff"}
-                 :secondary  {:main "#8B9F51"}
-                 :background {:default "#1e1e1e"
-                              :paper   "#2d2d2d"}}
+                 :secondary  {:main "#aed581"}
+                 :background {:default "#000000"
+                              :paper   "#1a1a1a"}
+                 :text       {:primary   "rgba(255, 255, 255, 0.87)"
+                              :secondary "rgba(255, 255, 255, 0.60)"}}
    :typography  theme-typography
-   :overrides   (merge theme-overrides
-                       {:MuiCardHeader {:action {:color "rgb(189, 189, 189)"}}
-                        :MuiButton     {:outlined {:borderColor "rgba(255,255,255,0.23)"
-                                                   :color       "rgba(255,255,255,0.87)"}}})
+   :overrides   theme-overrides
    :breakpoints theme-breakpoints})
 
 (def dark-theme
@@ -233,9 +233,10 @@
 (def light-theme
   (create-mui-theme (clj->js light-theme-props)))
 
+;; Global theme mode atom ("light" or "dark")
 (defonce theme-mode (atom "light"))
 
-(defn set-theme! [mode]
+(defn apply-theme [mode]
   (set! (-> js/document .-documentElement .-className) mode)
   (case mode
     "dark" dark-theme
@@ -247,8 +248,9 @@
 (defn set-theme-mode! [mode]
   (reset! theme-mode mode))
 
-(defn mui [component]
-  (theme-provider
-    {:theme (set-theme! @theme-mode)}
-    (css-baseline)
-    component))
+(rum/defc mui < rum/reactive [component]
+  (let [mode (rum/react theme-mode)]
+    (theme-provider
+      {:theme (apply-theme mode)}
+      (css-baseline)
+      component)))
