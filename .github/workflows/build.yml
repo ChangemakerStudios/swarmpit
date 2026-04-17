@@ -67,7 +67,6 @@ jobs:
       packages: write
     env:
       SECRET: ${{ secrets.PKG_USER }}
-      PR: ${{ github.event.pull_request.number }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
