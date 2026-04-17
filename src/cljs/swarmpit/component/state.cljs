@@ -7,7 +7,8 @@
                 :layout  {:mobileOpened       false
                           :mobileSearchOpened false
                           :menuAnchorEl       nil
-                          :mobileMoreAnchorEl nil}
+                          :mobileMoreAnchorEl nil
+                          :theme              "light"}
                 :dialog  {:open false}
                 :search  {:query ""}
                 :message {:text ""
@@ -93,6 +94,10 @@
 (def form-state-cursor [:form :state])
 
 (def docker-api-cursor [:docker :api])
+
+(def docker-engine-cursor [:docker :engine])
+
+(def instance-name-cursor [:instanceName])
 
 (def layout-cursor [:layout])
 
