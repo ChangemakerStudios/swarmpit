@@ -63,26 +63,33 @@
     {:key "nothing-match-text"} "Nothing matches this filter."))
 
 (rum/defc list-filters < rum/static [filterOpen? comp]
-  (comp/swipeable-drawer
-    {:anchor "right"
-     :open   filterOpen?}
-    (comp/box
-      {:className "Swarmpit-filter"}
+  ;; The drawer is rendered as a sibling of the list, and progress/form only
+  ;; provides a ThemeProvider while loading, so without this the drawer falls
+  ;; back to Material-UI's default (light) theme. That is not merely a local
+  ;; problem: MUI v4 emits .MuiPaper-root once per theme in use, at equal
+  ;; specificity, so introducing a second theme repaints every Paper on the
+  ;; page - the node cards turn white the moment the filter opens.
+  (comp/mui
+    (comp/swipeable-drawer
+      {:anchor "right"
+       :open   filterOpen?}
       (comp/box
-        {:className "Swarmpit-filter-actions"}
+        {:className "Swarmpit-filter"}
+        (comp/box
+          {:className "Swarmpit-filter-actions"}
+          (comp/button
+            {:onClick   #(state/update-value [:filterOpen?] false state/form-state-cursor)
+             :startIcon (icon/close {})
+             :variant   "text"
+             :color     "primary"} "Close"))
+        comp
+        (comp/box {:className "grow"})
         (comp/button
-          {:onClick   #(state/update-value [:filterOpen?] false state/form-state-cursor)
-           :startIcon (icon/close {})
-           :variant   "text"
-           :color     "primary"} "Close"))
-      comp
-      (comp/box {:className "grow"})
-      (comp/button
-        {:onClick   #(state/update-value [:filter] nil state/form-state-cursor)
-         :startIcon (comp/svg icon/trash-path)
-         :fullWidth true
-         :variant   "contained"
-         :color     "default"} "Clear"))))
+          {:onClick   #(state/update-value [:filter] nil state/form-state-cursor)
+           :startIcon (comp/svg icon/trash-path)
+           :fullWidth true
+           :variant   "contained"
+           :color     "default"} "Clear")))))
 
 (rum/defc list < rum/reactive
   [title items filtered-items render-metadata onclick-handler toolbar-render-metadata]
