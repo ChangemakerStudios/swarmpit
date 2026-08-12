@@ -232,21 +232,37 @@
                    {:variant "inherit"
                     :key     (str "mobile-menu-item-text-" (:name %))} (:name %)))))))
 
+(defn clear-search! []
+  (state/update-value [:query] "" state/search-cursor))
+
 (rum/defc search-input < rum/reactive [on-change-fn title]
-  (let [{:keys [query]} (state/react state/search-cursor)]
+  (let [{:keys [query]} (state/react state/search-cursor)
+        searching? (not (string/blank? query))]
     (html
       [:div.Swarmpit-appbar-search
        [:div.Swarmpit-appbar-search-icon (icon/search {})]
        (comp/input
          {:placeholder      (str "Search " (string/lower-case title) " ...")
           :onChange         on-change-fn
-          :defaultValue     query
+          ;; Controlled, so clearing the search from anywhere empties the field
+          :value            (or query "")
           :type             "search"
           :fullWidth        true
           :classes          {:root  "Swarmpit-appbar-search-root"
                              :input "Swarmpit-appbar-search-input"}
           :id               "Swarmpit-appbar-search-filter"
           :key              "appbar-search"
+          :endAdornment     (when searching?
+                              (comp/input-adornment
+                                {:position "end"}
+                                (comp/tooltip
+                                  {:title "Clear search"}
+                                  (comp/icon-button
+                                    {:size       "small"
+                                     :aria-label "Clear search"
+                                     :className  "Swarmpit-appbar-search-clear"
+                                     :onClick    clear-search!}
+                                    (icon/close {:fontSize "small"})))))
           :disableUnderline true})])))
 
 (rum/defc mobile-search-message < rum/reactive [on-change-fn title]
@@ -256,7 +272,7 @@
        (comp/input
          {:placeholder      (str "Search " (string/lower-case title) " ...")
           :onChange         on-change-fn
-          :defaultValue     query
+          :value            (or query "")
           :type             "search"
           :fullWidth        true
           :classes          {:root  "Swarmpit-appbar-search-mobile-root"
