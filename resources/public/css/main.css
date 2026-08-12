@@ -868,6 +868,12 @@ html.dark .Swarmpit-login-instance {
     align-items: center;
 }
 
+/* Tick marking the active theme in the user menu */
+.Swarmpit-appbar-menu-selected {
+    margin-left: 12px;
+    opacity: 0.8;
+}
+
 /* Running task count, top right of a node card. The card action slot is offset
    by Material-UI, so pull it back into line with the node name. */
 .Swarmpit-node-tasks {
