@@ -62,13 +62,12 @@ jobs:
     name: Build and push docker
     runs-on: ubuntu-latest
     needs: clojure
-    # Cutting a release pushes master, develop and a tag within seconds of each
-    # other, so two builds end up pushing to the same GHCR repository at once
-    # and one of them loses. Publish one at a time instead. Queue rather than
-    # cancel: the runs are for different commits and each image is wanted.
-    concurrency:
-      group: ghcr-publish
-      cancel-in-progress: false
+    # Release images come from release.yml, which publishes the version and
+    # :latest together off a single build. Building master here as well produced
+    # a second image of the same commit - a different digest under :latest than
+    # the version tag - and doubled the push volume, which is what tripped
+    # GitHub's secondary rate limit. Master still gets tested above.
+    if: github.ref != 'refs/heads/master'
     permissions:
       contents: read
       packages: write
@@ -106,9 +105,10 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/changemakerstudios/swarmpit
+          # Prerelease builds off develop only; release.yml owns the version
+          # and :latest.
           tags: |
             type=raw,value=${{ steps.gitversion.outputs.semVer }}
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
       - name: build and push
         uses: docker/build-push-action@v4
         with:

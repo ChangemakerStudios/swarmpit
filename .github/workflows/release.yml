@@ -62,12 +62,6 @@ jobs:
     name: Build and push docker
     runs-on: ubuntu-latest
     needs: clojure
-    # Shares a queue with build.yml. Cutting a release pushes master, develop
-    # and a tag within seconds, so without this the runs push to the same GHCR
-    # repository at once and one of them fails.
-    concurrency:
-      group: ghcr-publish
-      cancel-in-progress: false
     permissions:
       contents: read
       packages: write
@@ -97,7 +91,13 @@ jobs:
           context: .
           push: true
           platforms: linux/amd64,linux/arm64/v8,linux/arm/v7,linux/arm/v5
-          tags: ghcr.io/changemakerstudios/swarmpit:${{ inputs.tag || github.ref_name }}
+          # Both tags from this one build, so :latest is the released image and
+          # not merely another build of the same commit. Two tags off one build
+          # upload the layers once and write two manifests, which is nothing
+          # like the cost of building and pushing the whole thing twice.
+          tags: |
+            ghcr.io/changemakerstudios/swarmpit:${{ inputs.tag || github.ref_name }}
+            ghcr.io/changemakerstudios/swarmpit:latest
 
   release:
     name: Create GitHub release
