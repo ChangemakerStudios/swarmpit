@@ -494,7 +494,7 @@ html.dark .MuiAutocomplete-paper {
 
 .Swarmpit-drawer-footer {
     width: 210px !important;
-    padding-bottom: 1rem !important;
+    padding-bottom: 0.5rem !important;
 }
 
 .Swarmpit-drawer-footer-item-text {
@@ -503,12 +503,25 @@ html.dark .MuiAutocomplete-paper {
     margin-right: 5px;
 }
 
+/* The version lines and the Swagger row sit directly above one another, so
+   they need the same left edge - the box and the list item were indenting by
+   different amounts, which is what made the block look ragged. */
 .Swarmpit-drawer-footer-versions {
     color: #757575;
-    padding: 4px 16px 4px;
+    padding: 8px 16px 6px;
     font-size: 0.7rem;
-    line-height: 1.3;
+    line-height: 1.5;
     word-spacing: 2px;
+}
+
+.Swarmpit-drawer-footer .Swarmpit-drawer-item {
+    padding-left: 16px;
+    padding-right: 16px;
+}
+
+.Swarmpit-drawer-divider {
+    margin-left: 16px;
+    margin-right: 16px;
 }
 
 .Swarmpit-list-item-icon,
