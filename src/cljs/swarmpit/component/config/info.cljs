@@ -9,6 +9,7 @@
             [swarmpit.component.message :as message]
             [swarmpit.component.progress :as progress]
             [swarmpit.component.service.list :as services]
+            [swarmpit.component.config.create :as create]
             [swarmpit.component.common :as common]
             [swarmpit.component.toolbar :as toolbar]
             [swarmpit.url :refer [dispatch!]]
@@ -88,8 +89,20 @@
        :className "Swarmpit-form-table-header"})
     (form-data (base64/decode (:data config)))))
 
-(def form-actions
-  [{:onClick #(state/update-value [:open] true dialog/dialog-cursor)
+(defn- copy-config-handler
+  [config]
+  (create/prefill! (common/copy-name (:configName config))
+                   (base64/decode (:data config)))
+  (dispatch! (routes/path-for-frontend :config-create)))
+
+(defn form-actions
+  [config]
+  [{:onClick #(copy-config-handler config)
+    :icon    (comp/svg icon/copy-path)
+    :color   "default"
+    :variant "outlined"
+    :name    "Copy"}
+   {:onClick #(state/update-value [:open] true dialog/dialog-cursor)
     :icon    (comp/svg icon/trash-path)
     :color   "default"
     :variant "outlined"
@@ -124,7 +137,7 @@
              (comp/grid
                {:item true
                 :xs   12}
-               (toolbar/toolbar "Config" (:configName config) form-actions)))
+               (toolbar/toolbar "Config" (:configName config) (form-actions config))))
            (comp/grid
              {:item true
               :xs   12}

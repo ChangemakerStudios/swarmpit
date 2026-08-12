@@ -71,10 +71,23 @@
   (state/set-value {:valid?      false
                     :processing? false} state/form-state-cursor))
 
+(defonce ^:private prefill (atom nil))
+
+(defn prefill!
+  "Seed the next mount of the create form. Used by the copy action on a config's
+   detail page, which navigates here rather than posting directly, so the copy
+   can be reviewed and edited before it is created."
+  [config-name data]
+  (reset! prefill {:configName config-name
+                   :data       data}))
+
 (defn- init-form-value
   []
-  (state/set-value {:configName ""
-                    :data       ""} state/form-value-cursor))
+  (let [{:keys [configName data]} @prefill]
+    ;; Consume it, so a later visit to the create page starts empty
+    (reset! prefill nil)
+    (state/set-value {:configName (or configName "")
+                      :data       (or data "")} state/form-value-cursor)))
 
 (def mixin-init-form
   (mixin/init-form

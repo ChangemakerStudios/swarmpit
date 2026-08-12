@@ -73,10 +73,24 @@
   (state/set-value {:valid?      false
                     :processing? false} state/form-state-cursor))
 
+(defonce ^:private prefill (atom nil))
+
+(defn prefill!
+  "Seed the next mount of the create form with a name. Used by the copy action
+   on a secret's detail page.
+
+   Only the name is carried over: docker never returns the value of an existing
+   secret, so there is nothing to copy it from and it has to be entered again."
+  [secret-name]
+  (reset! prefill {:secretName secret-name}))
+
 (defn- init-form-value
   []
-  (state/set-value {:secretName ""
-                    :data       ""} state/form-value-cursor))
+  (let [{:keys [secretName]} @prefill]
+    ;; Consume it, so a later visit to the create page starts empty
+    (reset! prefill nil)
+    (state/set-value {:secretName (or secretName "")
+                      :data       ""} state/form-value-cursor)))
 
 (def mixin-init-form
   (mixin/init-form
