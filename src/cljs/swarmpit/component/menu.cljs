@@ -82,7 +82,7 @@
        :disableRipple true}
       (comp/list-item-text
         {:className "Swarmpit-drawer-footer-item-text"
-         :primary   (comp/typography {:variant "subtitle2"} "Swagger API")})
+         :primary   (comp/typography {:variant "caption"} "Swagger API")})
       (comp/list-item-icon
         {:color "primary"} (icon/open-in-new {:style {:fontSize 15}})))))
 
