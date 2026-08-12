@@ -6,6 +6,11 @@ services:
       - SWARMPIT_DB=http://db:5984
       - SWARMPIT_INFLUXDB=http://influxdb:8086
       - SWARMPIT_DOCKER_API=1.44
+      # Optional shared secret for the agent's POST /events. Left empty the
+      # endpoint stays open, which is what the stock agent needs. Set it to any
+      # random string to require the agent to present it - the agent picks it up
+      # from EVENT_ENDPOINT below, so both must match.
+      - SWARMPIT_EVENT_TOKEN=${SWARMPIT_EVENT_TOKEN:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     ports:
@@ -56,6 +61,9 @@ services:
     image: swarmpit/agent:latest
     environment:
       - DOCKER_API_VERSION=1.44
+      # The agent cannot send headers, but EVENT_ENDPOINT is a full URL, so the
+      # shared secret travels as a query parameter. Harmless when unset.
+      - EVENT_ENDPOINT=http://app:8080/events?token=${SWARMPIT_EVENT_TOKEN:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
