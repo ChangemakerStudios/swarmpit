@@ -15,6 +15,15 @@
 
 (def swarmpit-home-page "https://swarmpit.io")
 
+(defn copy-name
+  "Name for a copy of `item-name`: config -> config-2, config-2 -> config-3.
+   Docker config and secret names are immutable, so a copy always needs a new
+   one."
+  [item-name]
+  (if-let [[_ base n] (re-matches #"(.*)-(\d+)" (str item-name))]
+    (str base "-" (inc (js/parseInt n 10)))
+    (str item-name "-2")))
+
 (defn parse-version [version]
   (clojure.string/replace
     (:version version)

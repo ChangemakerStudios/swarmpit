@@ -10,6 +10,7 @@
             [swarmpit.component.toolbar :as toolbar]
             [swarmpit.component.common :as common]
             [swarmpit.component.service.list :as services]
+            [swarmpit.component.secret.create :as create]
             [swarmpit.url :refer [dispatch!]]
             [swarmpit.ajax :as ajax]
             [swarmpit.routes :as routes]
@@ -54,8 +55,20 @@
     (form/item-main "Created" (form/item-date (:createdAt secret)))
     (form/item-main "Last Update" (form/item-date (:updatedAt secret)))))
 
-(def form-actions
-  [{:onClick #(state/update-value [:open] true dialog/dialog-cursor)
+(defn- copy-secret-handler
+  [secret]
+  (create/prefill! (common/copy-name (:secretName secret)))
+  (message/info "Enter a value for the copy. Docker does not expose the value of an existing secret.")
+  (dispatch! (routes/path-for-frontend :secret-create)))
+
+(defn form-actions
+  [secret]
+  [{:onClick #(copy-secret-handler secret)
+    :icon    (comp/svg icon/copy-path)
+    :color   "default"
+    :variant "outlined"
+    :name    "Copy"}
+   {:onClick #(state/update-value [:open] true dialog/dialog-cursor)
     :icon    (comp/svg icon/trash-path)
     :color   "default"
     :variant "outlined"
@@ -89,7 +102,7 @@
            (comp/grid
              {:item true
               :xs 12}
-             (toolbar/toolbar "Secret" (:secretName secret) form-actions))
+             (toolbar/toolbar "Secret" (:secretName secret) (form-actions secret)))
            (comp/grid
              {:item true
               :xs   12}

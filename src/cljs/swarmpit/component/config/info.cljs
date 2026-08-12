@@ -89,17 +89,9 @@
        :className "Swarmpit-form-table-header"})
     (form-data (base64/decode (:data config)))))
 
-(defn copy-name
-  "Name for a copy of `config-name`: config -> config-2, config-2 -> config-3.
-   Docker config names are immutable, so a copy always needs a fresh one."
-  [config-name]
-  (if-let [[_ base n] (re-matches #"(.*)-(\d+)" (str config-name))]
-    (str base "-" (inc (js/parseInt n 10)))
-    (str config-name "-2")))
-
 (defn- copy-config-handler
   [config]
-  (create/prefill! (copy-name (:configName config))
+  (create/prefill! (common/copy-name (:configName config))
                    (base64/decode (:data config)))
   (dispatch! (routes/path-for-frontend :config-create)))
 
