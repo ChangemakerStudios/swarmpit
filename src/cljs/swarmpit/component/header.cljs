@@ -79,26 +79,34 @@
     "dark"  (comp/svg {:fontSize "small"} icon/dark-mode-path)
     (comp/svg {:fontSize "small"} icon/contrast-path)))
 
-(defn- theme-submenu [open]
+(defn- theme-submenu [open current]
   (comp/collapse
     {:in            @open
      :timeout       "auto"
      :unmountOnExit true}
     (map
       (fn [[pref label]]
-        (comp/menu-item
-          {:key      (str "theme-" pref)
-           :className      "nested"
-           :disablePadding true
-           :button   true
-           :onClick  (fn []
-                       (set-theme! pref)
-                       (state/update-value [:menuAnchorEl] nil state/layout-cursor))}
-          (comp/list-item-icon
-            {:className "Swarmpit-appbar-menu-icon"}
-            (theme-icon pref))
-          (comp/list-item-text
-            {:primary label})))
+        (let [selected? (= pref current)]
+          (comp/menu-item
+            {:key            (str "theme-" pref)
+             :className      "nested"
+             :disablePadding true
+             :button         true
+             :selected       selected?
+             :onClick        (fn []
+                               (set-theme! pref)
+                               (state/update-value [:menuAnchorEl] nil state/layout-cursor))}
+            (comp/list-item-icon
+              {:className "Swarmpit-appbar-menu-icon"}
+              (theme-icon pref))
+            (comp/list-item-text
+              {:primary label})
+            ;; Which theme is active is otherwise invisible - the trigger shows
+            ;; the resolved icon, not the preference, so "auto" is indistinguishable
+            ;; from whichever of light or dark it currently resolves to.
+            (when selected?
+              (icon/check {:className "Swarmpit-appbar-menu-selected"
+                           :fontSize  "small"})))))
       [["light" "Light"]
        ["dark"  "Dark"]
        ["auto"  "Auto"]])))
@@ -132,7 +140,7 @@
         (if @theme-open
           (icon/expand-less)
           (icon/expand-more)))
-      (theme-submenu theme-open)
+      (theme-submenu theme-open pref)
       (when (storage/admin?)
         (comp/menu-item
           {:button  true
