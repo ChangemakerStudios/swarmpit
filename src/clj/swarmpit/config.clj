@@ -12,6 +12,7 @@
          :work-dir            "/tmp"
          :instance-name       nil
          :api-token-expiry-days nil
+         :event-token         nil
          :password-hashing    {:alg        :pbkdf2+sha512
                                :iterations 200000}}))
 
@@ -25,7 +26,8 @@
         :agent-url           (env :swarmpit-agent-url)
         :work-dir            (env :swarmpit-workdir)
         :instance-name       (env :swarmpit-instance-name)
-        :api-token-expiry-days (env :swarmpit-api-token-expiry-days)}
+        :api-token-expiry-days (env :swarmpit-api-token-expiry-days)
+        :event-token         (env :swarmpit-event-token)}
        (into {} (remove #(nil? (val %))))))
 
 (def ^:private dynamic (atom {}))

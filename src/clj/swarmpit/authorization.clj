@@ -1,6 +1,8 @@
 (ns swarmpit.authorization
   (:require [buddy.auth :refer [authenticated?]]
             [buddy.auth.accessrules :refer [success error wrap-access-rules]]
+            [clojure.string :as str]
+            [swarmpit.config :as cfg]
             [swarmpit.handler :refer [resp-error]]
             [swarmpit.token :refer [admin?]]
             [swarmpit.token :refer [user?]]
@@ -16,6 +18,40 @@
 (defn- any-access
   [_]
   true)
+
+(defn- query-param
+  "Read a raw query parameter. Access rules run before the parameters
+   middleware, so the query string has not been parsed yet."
+  [request param]
+  (some->> (str/split (or (:query-string request) "") #"&")
+           (map #(str/split % #"=" 2))
+           (filter #(= param (first %)))
+           (first)
+           (second)))
+
+(defn- event-push-access
+  "Authorize the agent's `POST /events`.
+
+   The agent ships no credentials - it simply posts to EVENT_ENDPOINT - so
+   requiring a login token here silently kills stats collection for every
+   default deployment. Instead:
+
+     - SWARMPIT_EVENT_TOKEN unset (default): the endpoint stays open, so the
+       stock agent works out of the box exactly as it always has.
+     - SWARMPIT_EVENT_TOKEN set: the agent must present it. It has no way to
+       send a header, but EVENT_ENDPOINT is a full URL, so the token travels as
+       a query parameter: EVENT_ENDPOINT=http://app:8080/events?token=<token>
+
+   A logged-in user is always allowed, which keeps the endpoint usable from the
+   UI and from tests."
+  [request]
+  (let [expected (cfg/config :event-token)]
+    (cond
+      (str/blank? expected) true
+      (= expected (query-param request "token")) true
+      (authenticated? request) true
+      :else (error {:code    401
+                    :message "Authentication failed"}))))
 
 (defn- admin-access
   [{:keys [identity]}]
@@ -66,7 +102,7 @@
              :handler        any-access}
             {:pattern        #"^/events$"
              :request-method :post
-             :handler        authenticated-access}
+             :handler        event-push-access}
             {:pattern #"^/version$"
              :handler any-access}
             {:pattern #"^/initialize$"
