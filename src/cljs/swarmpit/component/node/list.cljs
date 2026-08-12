@@ -95,15 +95,16 @@
             :className "Swarmpit-form-card-header"
             :key       (str "node-card-header-" index)
             :subheader (:address item)
-            :avatar    (comp/svg (icon/os-path (:os item)))})
+            :avatar    (comp/svg (icon/os-path (:os item)))
+            :action    (let [running (or (:tasks item) 0)]
+                         (html
+                           [:div.Swarmpit-node-tasks
+                            [:div.Swarmpit-node-tasks-count running]
+                            [:div.Swarmpit-node-tasks-label
+                             (if (= 1 running) "task running" "tasks running")]]))})
          (comp/card-content
            {:key (str "node-card-engine-" index)}
-           (html
-             [:span
-              (str "docker " (:engine item))
-              [:span.Swarmpit-node-tasks
-               (let [running (or (:tasks item) 0)]
-                 (str running " " (if (= 1 running) "container" "containers")))]]))
+           (str "docker " (:engine item)))
          (comp/card-content
            {:key (str "node-card-labels-" index)}
            (node-item-labels item))
