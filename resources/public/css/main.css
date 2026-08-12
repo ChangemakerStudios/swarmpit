@@ -1909,9 +1909,22 @@ html.dark .MuiButton-outlined {
     color: rgba(255, 255, 255, 0.87);
 }
 
-html.dark .MuiButton-contained.MuiButton-colorDefault {
+/* Material-UI v4 gives Button no colorDefault class - that one belongs to
+   AppBar and Avatar - so a contained button with color="default" is only
+   identifiable by the absence of the primary and secondary classes. It is
+   hard-coded to grey[300], which stays light whatever the theme. */
+html.dark .MuiButton-contained:not(.MuiButton-containedPrimary):not(.MuiButton-containedSecondary) {
     background-color: #424242;
     color: rgba(255, 255, 255, 0.87);
+}
+
+html.dark .MuiButton-contained:not(.MuiButton-containedPrimary):not(.MuiButton-containedSecondary):hover {
+    background-color: #4f4f4f;
+}
+
+html.dark .MuiButton-contained.Mui-disabled {
+    background-color: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.3);
 }
 
 html.dark .MuiButton-textPrimary {
