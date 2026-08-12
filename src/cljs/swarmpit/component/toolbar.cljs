@@ -112,7 +112,14 @@
 (rum/defc list-toobar < rum/reactive
   [title items filtered-items actions]
   (let [{:keys [query]} (state/react state/search-cursor)
-        searching? (not (blank? query))]
+        {filters :filter} (state/react state/form-state-cursor)
+        searching? (not (blank? query))
+        ;; Whatever the page put under :filter, so this works for every list
+        ;; without the toolbar knowing what any of them filter on.
+        active-filters (->> filters
+                            (remove (fn [[_ v]] (or (nil? v)
+                                                    (and (string? v) (blank? v)))))
+                            (sort-by first))]
     (comp/mui
       (comp/toolbar
         {:disableGutters true
@@ -145,7 +152,22 @@
                    :variant   "outlined"
                    :title     "Clear search"
                    :className "Swarmpit-ftoolbar-filter"
-                   :onDelete  #(state/update-value [:query] "" state/search-cursor)}))))
+                   :onDelete  #(state/update-value [:query] "" state/search-cursor)}))
+              ;; Same treatment for the drawer filters. They were invisible once
+              ;; the drawer closed, so a list could stay filtered with nothing on
+              ;; screen saying so.
+              (map
+                (fn [[k v]]
+                  (comp/chip
+                    {:key       (str "filter-chip-" (name k))
+                     :label     (str (name k) ": " v)
+                     :size      "small"
+                     :color     "primary"
+                     :variant   "outlined"
+                     :title     (str "Clear " (name k) " filter")
+                     :className "Swarmpit-ftoolbar-filter"
+                     :onDelete  #(state/update-value [:filter k] nil state/form-state-cursor)}))
+                active-filters)))
           (comp/grid
             {:item true}
             (comp/box
