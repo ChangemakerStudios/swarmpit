@@ -1139,7 +1139,8 @@
   [node-id]
   (-> (dc/node node-id)
       (dmi/->node)
-      (node-stats)))
+      (node-stats)
+      (assoc :tasks (get (running-tasks-by-node) node-id 0))))
 
 (defn update-node
   [node]
