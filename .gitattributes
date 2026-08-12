@@ -1,0 +1,9 @@
+# Vendored maven artifacts are checksum-validated byte-for-byte. Git's automatic
+# line-ending conversion (core.autocrlf=true, the Windows default) rewrites the
+# .pom and maven-metadata.xml files on checkout, which breaks their recorded
+# .md5/.sha1 and makes dependency resolution fail with
+# "Failed to read artifact descriptor". Keep this tree byte-exact.
+repo/** -text
+
+# Shell scripts must keep LF so they stay runnable from containers and CI.
+*.sh text eol=lf
