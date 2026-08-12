@@ -39,7 +39,7 @@ Shared secret the agent must present on `POST /events`, the endpoint it pushes n
 
 The agent ships no credentials, so when this is `nil` the endpoint accepts unauthenticated pushes and the stock agent works with no extra configuration. Requiring a login token here instead would silently stop all stats collection.
 
-Set it to any random string to lock the endpoint down. The agent cannot send headers, but its `EVENT_ENDPOINT` is a full URL, so pass the secret as a query parameter and keep the two in sync:
+Set it to any random string to lock the endpoint down. Give the agent the same value and it will send it as the `X-Swarmpit-Event-Token` header:
 
 ```yaml
 app:
@@ -47,8 +47,18 @@ app:
     - SWARMPIT_EVENT_TOKEN=<your-secret>
 agent:
   environment:
+    - SWARMPIT_EVENT_TOKEN=<your-secret>
+```
+
+Agents that don't support the header can pass the same secret as a `token` query parameter instead, since `EVENT_ENDPOINT` is a full URL:
+
+```yaml
+agent:
+  environment:
     - EVENT_ENDPOINT=http://app:8080/events?token=<your-secret>
 ```
+
+The secret is never read from the `Authorization` header: that is parsed as a JWT by the authentication middleware, which runs first and rejects anything it cannot verify before this rule is reached.
 
 Logged-in users are always allowed through, so the UI is unaffected either way.
 Default is `nil` (endpoint open, matching the agent's out-of-the-box behaviour).

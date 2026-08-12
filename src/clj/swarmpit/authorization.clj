@@ -38,9 +38,14 @@
 
      - SWARMPIT_EVENT_TOKEN unset (default): the endpoint stays open, so the
        stock agent works out of the box exactly as it always has.
-     - SWARMPIT_EVENT_TOKEN set: the agent must present it. It has no way to
-       send a header, but EVENT_ENDPOINT is a full URL, so the token travels as
-       a query parameter: EVENT_ENDPOINT=http://app:8080/events?token=<token>
+     - SWARMPIT_EVENT_TOKEN set: the agent must present it, either as the
+       X-Swarmpit-Event-Token header (agent 2.3.0+) or as a `token` query
+       parameter, which any agent can send because EVENT_ENDPOINT is a full URL:
+       EVENT_ENDPOINT=http://app:8080/events?token=<token>
+
+   The secret deliberately does not travel in the Authorization header: that is
+   parsed as a JWT by the authentication middleware, which runs first and
+   rejects anything it cannot verify before these rules are consulted.
 
    A logged-in user is always allowed, which keeps the endpoint usable from the
    UI and from tests."
@@ -48,6 +53,7 @@
   (let [expected (cfg/config :event-token)]
     (cond
       (str/blank? expected) true
+      (= expected (get-in request [:headers "x-swarmpit-event-token"])) true
       (= expected (query-param request "token")) true
       (authenticated? request) true
       :else (error {:code    401
