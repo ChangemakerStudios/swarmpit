@@ -32,6 +32,18 @@
     (with-redefs [cfg/config (fn [_] "s3cret")]
       (is (allowed? (event-push-access (push-request "token=s3cret"))))))
 
+  (testing "the matching X-Swarmpit-Event-Token header is allowed"
+    (with-redefs [cfg/config (fn [_] "s3cret")]
+      (is (allowed? (event-push-access
+                      (assoc (push-request)
+                        :headers {"x-swarmpit-event-token" "s3cret"}))))))
+
+  (testing "a wrong header token is rejected"
+    (with-redefs [cfg/config (fn [_] "s3cret")]
+      (is (not (allowed? (event-push-access
+                           (assoc (push-request)
+                             :headers {"x-swarmpit-event-token" "nope"})))))))
+
   (testing "the token is found among other query params"
     (with-redefs [cfg/config (fn [_] "s3cret")]
       (is (allowed? (event-push-access (push-request "foo=bar&token=s3cret"))))))
