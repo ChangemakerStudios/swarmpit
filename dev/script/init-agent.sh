@@ -25,5 +25,5 @@ else
       --env EVENT_ENDPOINT=http://${HOST_IP}:3449/events \
       --env HEALTH_CHECK_ENDPOINT=http://${HOST_IP}:3449/version \
       --volume /var/run/docker.sock:/var/run/docker.sock \
-      swarmpit/agent:latest
+      ghcr.io/changemakerstudios/agent:latest
 fi

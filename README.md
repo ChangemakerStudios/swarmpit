@@ -10,6 +10,8 @@ This is a maintained fork of [swarmpit/swarmpit](https://github.com/swarmpit/swa
 - Silence agent `/logs/` 404 spam
 - Dark mode support
 - Modernized Docker Compose spec with skip image resolution toggle
+- GitHub Container Registry (GHCR) support
+- Keeps node statistics working, and ships a maintained [agent](https://github.com/ChangemakerStudios/agent)
 
 Swarmpit provides simple and easy to use interface for your Docker Swarm cluster. You can manage your stacks, services, secrets, volumes, networks etc. After linking your Docker Hub account or custom registry, private repositories can be easily deployed on Swarm. Best of all, you can share this management console securely with your whole team.
 
@@ -23,7 +25,21 @@ This fork publishes multi-architecture images (amd64, arm64, armv7, armv5):
 
 ```
 ghcr.io/changemakerstudios/swarmpit:latest
+ghcr.io/changemakerstudios/agent:latest
 ```
+
+### A note on the agent
+
+The bundled stack uses this fork's agent rather than `swarmpit/agent:latest`. It
+tracks a current Docker Engine SDK — upstream's is several years behind, which
+matters against Docker 28.x daemons — and it can authenticate its stats pushes
+(see [`SWARMPIT_EVENT_TOKEN`](doc/configuration.md#swarmpit_event_token)).
+
+Upstream's agent still works if you prefer it: swap the image back in your
+compose. Note that upstream currently requires authentication on `POST /events`
+while shipping an agent that cannot authenticate, so node statistics silently
+stop on stock upstream deployments. This fork keeps that endpoint working by
+default and makes the token opt-in.
 
 ### Quick start
 
@@ -53,7 +69,7 @@ The only dependency for Swarmpit deployment is Docker with Swarm initialized. Do
 [This stack](docker-compose.yml) is a composition of 4 services:
 
 * app - Swarmpit
-* [agent](https://github.com/swarmpit/agent) - Swarmpit agent
+* [agent](https://github.com/ChangemakerStudios/agent) - Swarmpit agent (this fork's build)
 * db - CouchDB (Application data)
 * influxdb - InfluxDB (Cluster statistics)
 
