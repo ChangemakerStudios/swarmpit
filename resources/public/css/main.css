@@ -204,6 +204,8 @@ html.dark .MuiAutocomplete-paper {
     display: flex;
     flex-direction: row;
     justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
 }
 
 .Swarmpit-message {
