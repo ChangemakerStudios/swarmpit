@@ -1,23 +1,11 @@
 (ns material.component.list.basic
   (:refer-clojure :exclude [list])
   (:require [material.components :as cmp]
+            [material.component.pagination :as pagination]
             [material.icon :as icon]
             [swarmpit.url :refer [dispatch!]]
             [sablono.core :refer-macros [html]]
             [rum.core :as rum]))
-
-(defonce footer-state
-         (atom {:rowsPerPage 30
-                :page        0}))
-
-(defn calculate-page-items [items {:keys [page rowsPerPage]}]
-  (let [items-size (count items)
-        pitems-range (+ (* page rowsPerPage) rowsPerPage)]
-    (subvec (into [] items)
-            (* page rowsPerPage)
-            (if (> pitems-range items-size)
-              items-size
-              pitems-range))))
 
 (defn table-head
   [render-metadata]
@@ -174,39 +162,28 @@
          (list (:list render-metadata) items onclick-handler-fn))])))
 
 (rum/defc footer < rum/reactive [items]
-  (let [{:keys [rowsPerPage page]} (rum/react footer-state)]
-    (when (> (count items) rowsPerPage)
-      (cmp/table-footer
-        {:className "Swarmpit-table-footer"}
-        (cmp/table-row
-          {}
-          (cmp/table-pagination
-            {:rowsPerPageOptions  []
-             :component           "div"
-             :count               (count items)
-             :rowsPerPage         rowsPerPage
-             :page                page
-             :onChangePage        (fn [e new-page]
-                                    (swap! footer-state assoc :page new-page))
-             :onChangeRowsPerPage (fn [e]
-                                    (swap! footer-state assoc :rowsPerPage (-> e .-target .-value))
-                                    (swap! footer-state assoc :page 0))}))))))
+  (when-let [controls (pagination/pagination items)]
+    (cmp/table-footer
+      {:className "Swarmpit-table-footer"}
+      (cmp/table-row
+        {}
+        controls))))
 
 (rum/defc responsive-footer < rum/reactive
                               {:init (fn [state _]
-                                       (swap! footer-state assoc :page 0)
+                                       (pagination/reset-page!)
                                        state)}
   [render-metadata items onclick-handler-fn]
-  (let [fs (rum/react footer-state)]
+  (let [ps (rum/react pagination/state)]
     (cmp/mui
       (html
         [:div
          (cmp/hidden
            {:only           ["xs" "sm"]
             :implementation "js"}
-           (table (:table render-metadata) (calculate-page-items items fs) onclick-handler-fn))
+           (table (:table render-metadata) (pagination/page-items items ps) onclick-handler-fn))
          (cmp/hidden
            {:only           ["md" "lg" "xl"]
             :implementation "js"}
-           (list (:list render-metadata) (calculate-page-items items fs) onclick-handler-fn))
+           (list (:list render-metadata) (pagination/page-items items ps) onclick-handler-fn))
          (footer items)]))))
