@@ -44,6 +44,11 @@ jobs:
       - run: ./start-dind.sh
         name: start Docker in Docker
         working-directory: dev/script
+      # The jar reports this at /version and in the UI. Without it the release
+      # artifact calls itself 2.0-SNAPSHOT whatever tag it was cut from.
+      # build.yml derives the same number from GitVersion; here the tag is it.
+      - name: set project version
+        run: sed -i "s/^(defproject swarmpit \".*\"/(defproject swarmpit \"${{ inputs.tag || github.ref_name }}\"/" project.clj
       - run: lein deps
       - run: lein test :all
       - run: lein uberjar
