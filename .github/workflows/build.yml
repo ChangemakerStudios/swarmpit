@@ -62,13 +62,6 @@ jobs:
     name: Build and push docker
     runs-on: ubuntu-latest
     needs: clojure
-    # Cutting a release pushes master, develop and a tag within seconds of each
-    # other, so two builds end up pushing to the same GHCR repository at once
-    # and one of them loses. Publish one at a time instead. Queue rather than
-    # cancel: the runs are for different commits and each image is wanted.
-    concurrency:
-      group: ghcr-publish
-      cancel-in-progress: false
     permissions:
       contents: read
       packages: write
