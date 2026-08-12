@@ -75,9 +75,9 @@
 (defn- form-skip-image-resolve [value]
   (comp/form-control-label
     {:control (comp/checkbox
-                {:checked  (not value)
-                 :onChange #(state/update-value [:skipImageResolve] (not (-> % .-target .-checked)) state/form-value-cursor)})
-     :label   "Resolve images"}))
+                {:checked  value
+                 :onChange #(state/update-value [:skipImageResolve] (-> % .-target .-checked) state/form-value-cursor)})
+     :label   "without image resolution"}))
 
 (defn- update-stack-handler
   [name]
@@ -166,8 +166,7 @@
               {:className "Swarmpit-fcard-content"}
               (form-name name)
               (form-select name :stack-compose last? previous?)
-              (form-editor (:compose spec))
-              (form-skip-image-resolve skipImageResolve))
+              (form-editor (:compose spec)))
             (comp/card-actions
               {:className "Swarmpit-fcard-actions"}
               (composite/progress-button

@@ -158,8 +158,7 @@
                    :className "Swarmpit-fcard-message"}
                   "Group of interrelated services that are orchestrated and scaled together")
                 (form-name name)
-                (form-editor (:compose spec))
-                (form-skip-image-resolve skipImageResolve))
+                (form-editor (:compose spec)))
               (comp/card-actions
                 {:className "Swarmpit-fcard-actions"}
                 (composite/progress-button
