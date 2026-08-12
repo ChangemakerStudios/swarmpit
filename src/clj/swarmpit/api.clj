@@ -25,6 +25,7 @@
             [swarmpit.couchdb.mapper.inbound :as cmi]
             [swarmpit.couchdb.mapper.outbound :as cmo]
             [swarmpit.gitlab.client :as gc]
+            [swarmpit.github.client :as ghc]
             [swarmpit.aws.client :as awsc]
             [swarmpit.agent.client :as sac]
             [clojure.core.memoize :as memo]
@@ -558,12 +559,37 @@
   (->> (registry-ghcr registry-id)
        (cc/delete-ghcr-registry)))
 
+(defn ghcr-packages
+  "GHCR does not implement the Docker v2 /_catalog endpoint - it answers 403
+   even for a correctly scoped token. Repositories are therefore listed via the
+   GitHub Packages API, across both the user's own packages and those of every
+   organization the token can see."
+  [registry]
+  (into #{}
+        (concat
+          (ghc/user-packages registry)
+          (->> (ghc/user-organizations registry)
+               (mapcat #(ghc/org-packages registry (:login %)))))))
+
+(def ghcr-packages-memo
+  (memo/ttl
+    ghcr-packages :ttl/threshold 3600000))
+
+(defn- ->ghcr-repository
+  "GHCR image paths are always lowercase, while a GitHub owner login may not be
+   (e.g. ChangemakerStudios), so the path has to be downcased to be pullable."
+  [{:keys [name owner]}]
+  (let [path (str/lower-case (str (:login owner) "/" name))]
+    {:id   (hash path)
+     :name path}))
+
 (defn registry-ghcr-repositories
   [registry-id]
   (->> (cc/registry-ghcr registry-id)
-       (registry-ghcr->v2)
-       (rc/repositories)
-       (rmi/->repositories)))
+       (ghcr-packages-memo)
+       (map ->ghcr-repository)
+       (sort-by :name)
+       (into [])))
 
 ;;; Stackfile API
 

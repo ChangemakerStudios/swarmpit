@@ -52,13 +52,6 @@
      :InputLabelProps {:shrink true}
      :value           value}))
 
-(defn- form-skip-image-resolve [value]
-  (comp/form-control-label
-    {:control (comp/checkbox
-                {:checked  (not value)
-                 :onChange #(state/update-value [:skipImageResolve] (not (-> % .-target .-checked)) state/form-value-cursor)})
-     :label   "Resolve images"}))
-
 (defn- compose-handler
   [service-name]
   (when service-name
