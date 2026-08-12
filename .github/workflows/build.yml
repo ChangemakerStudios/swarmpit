@@ -99,8 +99,14 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/changemakerstudios/swarmpit
+          # On master the GitVersion semver is the release version, which
+          # release.yml already pushes from the tag. Publishing it here as well
+          # sent the same four-platform image twice, and GitHub answers a burst
+          # of those with a secondary rate limit - a 403 on the manifest push,
+          # after every layer has already been uploaded. Leave the version to
+          # release.yml and publish only the moving `latest` here.
           tags: |
-            type=raw,value=${{ steps.gitversion.outputs.semVer }}
+            type=raw,value=${{ steps.gitversion.outputs.semVer }},enable=${{ github.ref != 'refs/heads/master' }}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
       - name: build and push
         uses: docker/build-push-action@v4
