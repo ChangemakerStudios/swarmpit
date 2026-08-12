@@ -1,6 +1,6 @@
 # swarmpit
 
-lightweight docker swarm management ui. clojure backend + clojurescript (rum/react) frontend, couchdb for app data, influxdb 1.x (optional) for stats. deployed via `docker stack deploy`. see `docker-compose.yml` for the reference stack: `app` + [`agent`](https://github.com/swarmpit/agent) + `db` (couchdb) + `influxdb:1.8`.
+lightweight docker swarm management ui. clojure backend + clojurescript (rum/react) frontend, couchdb for app data, influxdb 1.x (optional) for stats. deployed via `docker stack deploy`. see `docker-compose.yml` for the reference stack: `app` + [`agent`](https://github.com/ChangemakerStudios/agent) (this fork's build, `ghcr.io/changemakerstudios/agent`) + `db` (couchdb) + `influxdb:1.8`.
 
 ## build / test / dev
 
