@@ -746,8 +746,7 @@
   (let [registry-address (du/distribution-id repository-name)
         repository-name (du/registry-repository repository-name registry-address)]
     (-> (registry-by-url owner registry-address)
-        (rc/manifest repository-name repository-tag)
-        (rmi/->repository-config)
+        (rc/repository-config repository-name repository-tag)
         :config
         (dmi/->image-ports))))
 
