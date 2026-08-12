@@ -202,7 +202,7 @@
                      :rollback        deploy
                      :rollbackAllowed boolean?
                      :autoredeploy    boolean?
-                     (ds/opt :maxReplicas) number?
+                     (ds/opt :maxReplicas) (ds/maybe number?)
                      :placement       [{:rule string?}]}})
 
 (def service-stats
@@ -251,7 +251,7 @@
                                        :attempts        number?}
                        :rollback      deploy
                        :autoredeploy  boolean?
-                       (ds/opt :maxReplicas) number?
+                       (ds/opt :maxReplicas) (ds/maybe number?)
                        :placement     [{:rule string?}]}})
 
 (def service-update
@@ -309,7 +309,7 @@
                                               :attempts        number?}
                               :rollback      deploy
                               :autoredeploy  boolean?
-                              (ds/opt :maxReplicas) number?
+                              (ds/opt :maxReplicas) (ds/maybe number?)
                               :placement     [{:rule string?}]}})
 
 (def service-logs
