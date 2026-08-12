@@ -98,7 +98,12 @@
             :avatar    (comp/svg (icon/os-path (:os item)))})
          (comp/card-content
            {:key (str "node-card-engine-" index)}
-           (str "docker " (:engine item)))
+           (html
+             [:span
+              (str "docker " (:engine item))
+              [:span.Swarmpit-node-tasks
+               (let [running (or (:tasks item) 0)]
+                 (str running " " (if (= 1 running) "container" "containers")))]]))
          (comp/card-content
            {:key (str "node-card-labels-" index)}
            (node-item-labels item))

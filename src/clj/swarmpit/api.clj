@@ -1112,11 +1112,28 @@
     (let [stats (apply dissoc (stats/node (:id node)) [:id :tasks])]
       (assoc node :stats stats))))
 
+(defn- running-tasks-by-node
+  "How many tasks are running on each node, keyed by node id. Tasks are memoized
+   for a second and shared with the other endpoints that need them, so this does
+   not add a docker round trip per request. A failure here must not cost us the
+   node list, which is useful with or without the count."
+  []
+  (try
+    (->> (tasks-memo)
+         (filter #(= "running" (:state %)))
+         (group-by :nodeId)
+         (reduce-kv (fn [acc node-id tasks] (assoc acc node-id (count tasks))) {}))
+    (catch Exception e
+      (log/warn "Node task count unavailable:" (.getMessage e))
+      {})))
+
 (defn nodes
   []
-  (->> (dc/nodes)
-       (dmi/->nodes)
-       (map #(node-stats %))))
+  (let [running (running-tasks-by-node)]
+    (->> (dc/nodes)
+         (dmi/->nodes)
+         (map #(node-stats %))
+         (map #(assoc % :tasks (get running (:id %) 0))))))
 
 (defn node
   [node-id]

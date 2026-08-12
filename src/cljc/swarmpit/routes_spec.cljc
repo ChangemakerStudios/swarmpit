@@ -348,6 +348,7 @@
    :resources    resources
    :plugins      {:networks [string?]
                   :volumes  [string?]}
+   (ds/opt :tasks) number?
    :leader       boolean?})
 
 (def node-update

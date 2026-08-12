@@ -868,6 +868,16 @@ html.dark .Swarmpit-login-instance {
     align-items: center;
 }
 
+/* Running container count, shown after the engine version on a node card */
+.Swarmpit-node-tasks {
+    opacity: 0.7;
+}
+
+.Swarmpit-node-tasks::before {
+    content: " · ";
+    opacity: 0.7;
+}
+
 /* Active search, shown next to the count so a filtered list reads as filtered */
 .Swarmpit-ftoolbar-filter {
     margin-left: 12px;
