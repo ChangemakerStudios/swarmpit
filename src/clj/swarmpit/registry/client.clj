@@ -136,10 +136,21 @@
   (:body (request-manifest registry repository-name repository-tag :GET
                            "application/vnd.docker.distribution.manifest.v1+prettyjws")))
 
+(def ^:private digest-accept
+  (str/join ", " [oci-index v2-list oci-manifest v2-manifest]))
+
 (defn digest
+  "Digest of whatever `docker pull` would resolve for the tag. Accept every
+   manifest type we can compare - images pushed by recent buildkit are OCI
+   index/manifest, which a plain registry answers with 404 manifest-unknown
+   unless the OCI types are accepted."
   [registry repository-name repository-tag]
-  (-> (or (request-manifest registry repository-name repository-tag :HEAD v2-list)
-          (request-manifest registry repository-name repository-tag :HEAD v2-manifest))
+  (-> (execute-with-fallback
+        {:method         :HEAD
+         :url            (build-url registry (str "/" repository-name "/manifests/" repository-tag))
+         :options        {:headers (merge (basic-auth registry)
+                                          {:Accept digest-accept})}
+         :quiet-statuses #{404}})
       :headers
       :docker-content-digest))
 
