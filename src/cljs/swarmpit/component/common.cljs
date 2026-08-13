@@ -80,25 +80,36 @@
   ;; page - the node cards turn white the moment the filter opens.
   (comp/mui
     (comp/swipeable-drawer
-      {:anchor "right"
-       :open   filterOpen?}
+      {:anchor  "right"
+       :open    filterOpen?
+       ;; SwipeableDrawer needs both of these. Without onClose, dismissing the
+       ;; drawer by clicking away from it left filterOpen? still true, so the
+       ;; panel and the state it is driven by disagreed about whether it was
+       ;; open.
+       :onClose #(state/update-value [:filterOpen?] false state/form-state-cursor)
+       :onOpen  #(state/update-value [:filterOpen?] true state/form-state-cursor)}
       (comp/box
         {:className "Swarmpit-filter"}
         (comp/box
           {:className "Swarmpit-filter-actions"}
-          (comp/button
-            {:onClick   #(state/update-value [:filterOpen?] false state/form-state-cursor)
-             :startIcon (icon/close {})
-             :variant   "text"
-             :color     "primary"} "Close"))
+          (comp/typography
+            {:variant "h6"} "Filters")
+          (comp/icon-button
+            {:onClick    #(state/update-value [:filterOpen?] false state/form-state-cursor)
+             :aria-label "Close filters"
+             :size       "small"}
+            (icon/close {})))
         comp
         (comp/box {:className "grow"})
+        ;; Was a contained button in Material-UI's "default" colour, which is a
+        ;; fixed grey owing nothing to the theme - it looked like it belonged to
+        ;; a different application in either mode.
         (comp/button
           {:onClick   #(state/update-value [:filter] nil state/form-state-cursor)
            :startIcon (comp/svg icon/trash-path)
            :fullWidth true
-           :variant   "contained"
-           :color     "default"} "Clear")))))
+           :variant   "outlined"
+           :color     "primary"} "Clear filters")))))
 
 (rum/defc list < rum/reactive
   [title items filtered-items render-metadata onclick-handler toolbar-render-metadata]

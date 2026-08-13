@@ -204,6 +204,8 @@ html.dark .MuiAutocomplete-paper {
     display: flex;
     flex-direction: row;
     justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
 }
 
 .Swarmpit-message {
@@ -514,9 +516,19 @@ html.dark .MuiAutocomplete-paper {
     word-spacing: 2px;
 }
 
+/* Keep the Swagger row on the same scale as the version lines above it. It was
+   subtitle2 against 0.7rem captions, so the footer read as two unrelated blocks
+   rather than one. */
 .Swarmpit-drawer-footer .Swarmpit-drawer-item {
     padding-left: 16px;
     padding-right: 16px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    min-height: 0;
+}
+
+.Swarmpit-drawer-footer .Swarmpit-drawer-item .MuiListItemIcon-root {
+    min-width: 0;
 }
 
 .Swarmpit-drawer-divider {
@@ -1445,6 +1457,40 @@ html.dark .Swarmpit-login-instance {
 .Swarmpit-node-href {
     color: inherit;
     text-decoration: inherit;
+}
+
+/* The whole card is a link, but it said nothing about being one. State layer
+   plus a lift on hover, and a visible focus ring so it is reachable by keyboard
+   as well as pointer. */
+.Swarmpit-node-href .Swarmpit-form-card {
+    transition: box-shadow 150ms ease-in-out, background-color 150ms ease-in-out;
+}
+
+.Swarmpit-node-href:hover .Swarmpit-form-card {
+    background-color: rgba(0, 0, 0, 0.04);
+    box-shadow: 0 3px 5px -1px rgba(0, 0, 0, 0.2),
+                0 5px 8px 0 rgba(0, 0, 0, 0.14),
+                0 1px 14px 0 rgba(0, 0, 0, 0.12);
+}
+
+.Swarmpit-node-href:focus-visible {
+    outline: none;
+}
+
+.Swarmpit-node-href:focus-visible .Swarmpit-form-card {
+    outline: 2px solid #957ed1;
+    outline-offset: 2px;
+}
+
+html.dark .Swarmpit-node-href:hover .Swarmpit-form-card {
+    background-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 3px 5px -1px rgba(0, 0, 0, 0.5),
+                0 5px 8px 0 rgba(0, 0, 0, 0.4),
+                0 1px 14px 0 rgba(0, 0, 0, 0.35);
+}
+
+html.dark .Swarmpit-node-href:focus-visible .Swarmpit-form-card {
+    outline-color: #b39ddb;
 }
 
 /* Recharts customizations */
