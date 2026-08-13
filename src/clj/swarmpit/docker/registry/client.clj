@@ -1,5 +1,6 @@
 (ns swarmpit.docker.registry.client
-  (:require [swarmpit.http :refer :all]))
+  (:require [clojure.string :as str]
+            [swarmpit.http :refer :all]))
 
 (def ^:private base-url "https://index.docker.io/v2")
 
@@ -34,11 +35,21 @@
   (:body (request-manifest token repository-name repository-tag :GET
                            "application/vnd.docker.distribution.manifest.v1+prettyjws")))
 
+(def ^:private digest-accept
+  (str/join ", " ["application/vnd.oci.image.index.v1+json"
+                  "application/vnd.docker.distribution.manifest.list.v2+json"
+                  "application/vnd.oci.image.manifest.v1+json"
+                  "application/vnd.docker.distribution.manifest.v2+json"]))
+
 (defn digest
+  "Digest of whatever `docker pull` would resolve for the tag. Accept every
+   manifest type we can compare - images pushed by recent buildkit are OCI
+   index/manifest, which the registry returns regardless of narrower Accepts."
   [token repository-name repository-tag]
-  (-> (or (request-manifest token repository-name repository-tag :HEAD
-                            "application/vnd.docker.distribution.manifest.list.v2+json")
-          (request-manifest token repository-name repository-tag :HEAD
-                            "application/vnd.docker.distribution.manifest.v2+json"))
+  (-> (execute {:method          :HEAD
+                :api             (str "/" repository-name "/manifests/" repository-tag)
+                :options         {:headers {:Authorization (str "Bearer " token)
+                                            :Accept        digest-accept}}
+                :quiet-statuses  #{404}})
       :headers
       :docker-content-digest))
