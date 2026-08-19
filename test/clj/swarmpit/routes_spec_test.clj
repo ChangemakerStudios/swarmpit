@@ -23,6 +23,18 @@
                     :type          "volume"
                     :readOnly      false}])))
 
+  (testing "GET output for a volume mount without options (null fields) round-trips through update"
+    (is (s/valid? mounts-spec
+                  [{:containerPath "/data"
+                    :host          "my-volume"
+                    :type          "volume"
+                    :id            "my-volume"
+                    :stack         nil
+                    :readOnly      false
+                    :volumeOptions {:labels nil
+                                    :driver {:name    nil
+                                             :options nil}}}])))
+
   (testing "populated volumeOptions is valid"
     (is (s/valid? mounts-spec
                   [{:containerPath "/data"

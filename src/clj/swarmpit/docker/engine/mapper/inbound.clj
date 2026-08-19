@@ -206,8 +206,9 @@
   [volume-options]
   (when volume-options
     {:labels (-> volume-options :Labels)
+     ;; docker returns Options as a raw map; the update spec and outbound mapper expect name/value pairs
      :driver {:name    (-> volume-options :DriverConfig :Name)
-              :options (-> volume-options :DriverConfig :Options)}}))
+              :options (map->name-value (-> volume-options :DriverConfig :Options))}}))
 
 (defn ->service-mounts
   [service-spec]
