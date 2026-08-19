@@ -84,11 +84,14 @@
 (defn ->service-mounts
   [service]
   (->> (:mounts service)
-       (map (fn [v] {:ReadOnly      (:readOnly v)
-                     :Source        (:host v)
-                     :Target        (:containerPath v)
-                     :Type          (:type v)
-                     :VolumeOptions (->service-volume-options (:volumeOptions v))}))
+       (map (fn [v]
+              (merge {:ReadOnly (:readOnly v)
+                      :Source   (:host v)
+                      :Target   (:containerPath v)
+                      :Type     (:type v)}
+                     ;; docker rejects tasks when VolumeOptions is set on a non-volume mount
+                     (when (= "volume" (:type v))
+                       {:VolumeOptions (->service-volume-options (:volumeOptions v))}))))
        (into [])))
 
 (defn- ->service-placement-contraints
