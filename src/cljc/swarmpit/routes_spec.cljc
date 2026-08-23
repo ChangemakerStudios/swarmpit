@@ -275,9 +275,13 @@
                                (ds/opt :host)          string?
                                :type                   string?
                                :readOnly               boolean?
-                               (ds/opt :volumeOptions) {(ds/opt :labels) map?
-                                                        (ds/opt :driver) {:name             string?
-                                                                          (ds/opt :options) [name-value]}}}]
+                               ;; nilable throughout so GET output round-trips through update: null for
+                               ;; bind mounts, null labels/name/options for volume mounts without options
+                               (ds/opt :volumeOptions) (ds/maybe
+                                                         {(ds/opt :labels) (ds/maybe map?)
+                                                          (ds/opt :driver) (ds/maybe
+                                                                             {(ds/opt :name)    (ds/maybe string?)
+                                                                              (ds/opt :options) (ds/maybe [name-value])})})}]
    :networks                 [{:networkName             string?
                                (ds/opt :serviceAliases) [string?]}]
    :secrets                  [{:secretName   string?
