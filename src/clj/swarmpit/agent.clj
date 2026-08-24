@@ -33,9 +33,33 @@
                 (debug "Service" id (str "(" name ")") "autoredeploy check: image not found in registry")
                 (error "Service" id (str "(" name ")") "autoredeploy failed!" (ex-data e))))))))))
 
+(defonce ^:private reported-task-failures (atom #{}))
+
+(defn- task-failure-job
+  "Surface task placement failures in the log. A service update returns 200 the
+   moment the daemon accepts it - the swarm only rejects the task afterwards, on
+   the node, so failures like \"no basic auth credentials\" never reach our log
+   on their own. Each task is reported once; the id set is reset when it grows
+   past a sane bound so it cannot leak."
+  []
+  (try
+    (let [failed (->> (api/tasks)
+                      (filter #(contains? #{"rejected" "failed"} (:state %)))
+                      (filter #(some? (get-in % [:status :error]))))]
+      (when (< 2000 (count @reported-task-failures))
+        (reset! reported-task-failures #{}))
+      (doseq [{:keys [id serviceName nodeName state] :as task} failed]
+        (when-not (contains? @reported-task-failures id)
+          (swap! reported-task-failures conj id)
+          (warn "Task" id (str "(" serviceName ")") state "on node" nodeName
+                "-" (get-in task [:status :error])))))
+    (catch Exception e
+      (debug "Task failure check skipped:" (.getMessage e)))))
+
 (defn init []
   (let [start (.plusSeconds (Instant/now) 60)]
     (chime/chime-at
       (chime/periodic-seq start (Duration/ofMinutes 1))
       (fn [time]
-        (autoredeploy-job)))))
+        (autoredeploy-job)
+        (task-failure-job)))))

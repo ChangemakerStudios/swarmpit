@@ -6,7 +6,7 @@
 
 (defn- registry-token
   [auth]
-  (base64/encode (generate-string auth)))
+  (base64/encode-url (generate-string auth)))
 
 (defn- label-query
   [label]

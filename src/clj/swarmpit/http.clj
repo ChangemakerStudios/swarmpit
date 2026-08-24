@@ -19,7 +19,11 @@
 
 (defn- req-options
   [options]
-  (merge options
+  ;; None of these clients keep a cookie store, so every Set-Cookie is parsed
+  ;; and thrown away. Cloudflare's __cf_bm sits in front of auth.docker.io and
+  ;; its Expires format trips the default policy, logging a WARNING per request.
+  (merge {:cookie-policy :none}
+         options
          (when (some? (:body options))
            {:body (generate-string (:body options))})))
 

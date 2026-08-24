@@ -31,7 +31,6 @@
             [clojure.core.memoize :as memo]
             [clojure.tools.logging :as log]
             [clojure.string :as str]
-            [cemerick.url :refer [url]]
             [clj-time.core :as t]
             [swarmpit.token :as token]))
 
@@ -701,9 +700,9 @@
 (defn- registries-by-stackfile
   "Return registry accounts for given stackfile spec"
   [owner stackfile-spec]
-  (let [urls (stackfile-registry-distributions stackfile-spec)]
+  (let [addresses (stackfile-registry-distributions stackfile-spec)]
     (->> (supported-registries owner)
-         (filter #(contains? urls (-> % :url url :host))))))
+         (filter #(contains? addresses (du/registry-address (:url %)))))))
 
 ;;; Repository Tags API
 
@@ -1026,12 +1025,30 @@
 (defn- service-auth
   [owner service]
   (let [repository-name (get-in service [:repository :name])
-        distribution-id (du/distribution-id repository-name)]
-    (dmo/->auth-config
-      (cond
-        (du/library? repository-name) nil
-        (du/dockerhub? repository-name) (dockerhub-by-namespace owner distribution-id)
-        :else (registry-by-url owner distribution-id)))))
+        distribution-id (du/distribution-id repository-name)
+        auth-entity (cond
+                      (du/library? repository-name) nil
+                      (du/dockerhub? repository-name) (dockerhub-by-namespace owner distribution-id)
+                      :else (registry-by-url owner distribution-id))
+        auth-config (dmo/->auth-config auth-entity)]
+    ;; The swarm rejects a task asynchronously, long after this update returns
+    ;; 200, so a credential that never reaches the node is otherwise invisible
+    ;; server side. Log the decision, never the secret itself.
+    (log/debug "Service auth:" repository-name
+               "| distribution:" distribution-id
+               "| owner:" (pr-str owner)
+               "| matched:" (pr-str (:name auth-entity))
+               "| type:" (pr-str (:type auth-entity))
+               "| url:" (pr-str (:url auth-entity))
+               "| withAuth:" (pr-str (:withAuth auth-entity))
+               "| username:" (pr-str (:username auth-entity))
+               "| password-length:" (count (str (:password auth-entity)))
+               "| header-sent:" (some? auth-config))
+    (when (and (some? auth-entity) (nil? auth-config))
+      (log/warn "Registry auth for" distribution-id
+                "carries blank credentials - the swarm node will pull anonymously"
+                "and reject the task with \"no basic auth credentials\""))
+    auth-config))
 
 (defn create-service
   [owner service]
