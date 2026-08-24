@@ -235,7 +235,8 @@
 
 (rum/defc form < rum/reactive
                  mixin-init-form [_]
-  (let [{:keys [active processing?]} (state/react state/form-state-cursor)]
+  (let [{:keys [active processing?]} (state/react state/form-state-cursor)
+        resources-state (state/react resources/form-state-cursor)]
     (comp/mui
       (html
         [:div.Swarmpit-form
@@ -299,7 +300,7 @@
                   "Deploy"
                   create-service-handler
                   processing?
-                  false
+                  (false? (:valid? resources-state))
                   {:startIcon (comp/svg {} icon/rocket-path)})
                 (html [:div.grow])
                 (comp/button

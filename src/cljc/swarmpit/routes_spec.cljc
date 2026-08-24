@@ -8,8 +8,15 @@
    :value string?})
 
 (def resources
-  {:cpu    number?
-   :memory number?})
+  {(ds/opt :cpu)    number?
+   (ds/opt :memory) number?})
+
+;; Request payloads pass through clean-nils on the client, which drops blank
+;; (unlimited) values and collapses emptied maps - so every level here has to
+;; be optional.
+(def service-resources
+  {(ds/opt :reservation) resources
+   (ds/opt :limit)       resources})
 
 (def deploy
   {:parallelism   number?
@@ -242,8 +249,7 @@
    (ds/opt :sysctls)     [name-value]
    :logdriver         {:name string?
                        :opts [name-value]}
-   :resources         {:reservation resources
-                       :limit       resources}
+   (ds/opt :resources) service-resources
    :deployment        {:update        deploy
                        :restartPolicy {:condition       string?
                                        :delay           number?
@@ -269,11 +275,13 @@
                                (ds/opt :host)          string?
                                :type                   string?
                                :readOnly               boolean?
-                               ;; nilable so GET output (null for bind mounts) round-trips through update
+                               ;; nilable throughout so GET output round-trips through update: null for
+                               ;; bind mounts, null labels/name/options for volume mounts without options
                                (ds/opt :volumeOptions) (ds/maybe
-                                                         {(ds/opt :labels) map?
-                                                          (ds/opt :driver) {:name             string?
-                                                                            (ds/opt :options) [name-value]}})}]
+                                                         {(ds/opt :labels) (ds/maybe map?)
+                                                          (ds/opt :driver) (ds/maybe
+                                                                             {(ds/opt :name)    (ds/maybe string?)
+                                                                              (ds/opt :options) (ds/maybe [name-value])})})}]
    :networks                 [{:networkName             string?
                                (ds/opt :serviceAliases) [string?]}]
    :secrets                  [{:secretName   string?
@@ -302,8 +310,7 @@
                               :retries  number?}
    :logdriver                {:name string?
                               :opts [name-value]}
-   :resources                {:reservation resources
-                              :limit       resources}
+   (ds/opt :resources)       service-resources
    :deployment               {:update        deploy
                               :restartPolicy {:condition       string?
                                               :delay           number?

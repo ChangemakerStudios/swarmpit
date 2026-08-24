@@ -325,7 +325,7 @@
                   "Deploy"
                   #(update-service-handler id)
                   processing?
-                  false
+                  (false? (:valid? resources-state))
                   {:startIcon (comp/svg {} icon/rocket-path)})
                 (html [:div.grow])
                 (comp/button

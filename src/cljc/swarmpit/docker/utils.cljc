@@ -56,6 +56,17 @@
    namespace is returned, if registry domain is returned"
   (first (str/split repository-name #"/")))
 
+(defn registry-address
+  "Return registry address as it appears in an image reference, parsed from a
+   stored registry url. Keeps the port - `distribution-id` reads the same value
+   off the image side and includes it, so dropping it here would stop a registry
+   on a non default port from ever matching."
+  [registry-url]
+  (some-> registry-url
+          (str/replace #"^[a-zA-Z][a-zA-Z0-9+.-]*://" "")
+          (str/split #"/")
+          (first)))
+
 (defn registry-repository
   [repository-name registry-address]
   "Parse registry repository address"

@@ -15,6 +15,18 @@
          (b64/encodeByteArray))))
 
 #?(:clj
+   (defn encode-url
+     "base64url per RFC 4648 section 5. Docker decodes the X-Registry-Auth
+      header with Go's base64.URLEncoding, which rejects the '+' and '/' of the
+      standard alphabet. A blob containing either decodes to an EMPTY auth
+      config - the daemon only logs a warning and then pulls anonymously, so a
+      private registry answers the challenge with \"no basic auth credentials\"
+      as though no account were linked at all."
+     [data]
+     (let [data-bytes (.getBytes (str data))]
+       (.encodeToString (Base64/getUrlEncoder) data-bytes))))
+
+#?(:clj
    (defn decode
      [encoded-data]
      (String. (.decode (Base64/getDecoder)

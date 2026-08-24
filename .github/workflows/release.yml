@@ -20,16 +20,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout tag
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag || github.ref_name }}
       - name: install java
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
           java-version: '11'
       - name: install clojure tools
-        uses: DeLaGuardo/setup-clojure@9.5
+        uses: DeLaGuardo/setup-clojure@13.6.1
         with:
           lein: latest
       - run: ./init-db.sh
@@ -53,7 +53,7 @@ jobs:
       - run: lein test :all
       - run: lein uberjar
       - name: upload release jar
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: swarmpit.jar
           path: target/swarmpit.jar
@@ -67,26 +67,26 @@ jobs:
       packages: write
     steps:
       - name: checkout tag
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag || github.ref_name }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         name: download release jar
         with:
           name: swarmpit.jar
           path: target
       - name: set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v4
       - name: set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v4
       - name: login to GHCR
-        uses: docker/login-action@v2
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: build and push
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: true
@@ -107,16 +107,16 @@ jobs:
       contents: write
     steps:
       - name: checkout tag
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag || github.ref_name }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         name: download release jar
         with:
           name: swarmpit.jar
           path: target
       - name: create release
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65  # v2
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228  # v3.0.2
         with:
           tag_name: ${{ inputs.tag || github.ref_name }}
           files: target/swarmpit.jar

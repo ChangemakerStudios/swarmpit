@@ -5,12 +5,20 @@
             [swarmpit.utils :refer [name-value->map ->nano as-bytes]]))
 
 (defn ->auth-config
-  "Pass registry or dockeruser entity"
+  "Pass registry or dockeruser entity. Nil when the entity carries no usable
+   credentials: docker reads an auth config with an empty username or password
+   as no credentials at all, and sending one is worse than sending nothing -
+   an update without the header inherits the PullOptions already stored on the
+   service, while an empty one overwrites them."
   [auth-entity]
   (when (some? auth-entity)
-    {:username      (:username auth-entity)
-     :password      (:password auth-entity)
-     :serveraddress (:url auth-entity)}))
+    (let [username (:username auth-entity)
+          password (:password auth-entity)]
+      (when-not (or (str/blank? (str username))
+                    (str/blank? (str password)))
+        {:username      username
+         :password      password
+         :serveraddress (:url auth-entity)}))))
 
 (defn ->service-mode
   [service]
