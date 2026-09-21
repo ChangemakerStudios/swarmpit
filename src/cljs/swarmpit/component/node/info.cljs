@@ -124,33 +124,38 @@
         disk-limit (get-in item [:stats :disk :total])
         memory (get-in item [:stats :memory :used])
         memory-usage (get-in item [:stats :memory :usedPercentage])
-        memory-limit (get-in item [:stats :memory :total])]
+        memory-limit (get-in item [:stats :memory :total])
+        stale? (get-in item [:stats :stale])]
     (if (= "down" (:state item))
       (comp/box
         {:className "Swarmpit-stat-empty"})
-      (comp/box
-        {:class "Swarmpit-stat"}
-        (common/resource-pie
-          {:value (* cpu-limit (/ cpu-usage 100))
-           :limit cpu-limit
-           :usage cpu-usage
-           :type  :cpu}
-          (str cpu-limit " vCPU")
-          "graph-cpu")
-        (common/resource-pie
-          {:value disk
-           :limit disk-limit
-           :usage disk-usage
-           :type  :disk}
-          (str (common/render-capacity disk-limit false) " disk")
-          "graph-disk")
-        (common/resource-pie
-          {:value memory
-           :limit memory-limit
-           :usage memory-usage
-           :type  :memory}
-          (str (common/render-capacity memory-limit true) " ram")
-          "graph-memory")))))
+      (html
+       [:div
+        (comp/box
+          {:class (str "Swarmpit-stat" (when stale? " Swarmpit-stat-stale"))}
+          (common/resource-pie
+            {:value (* cpu-limit (/ cpu-usage 100))
+             :limit cpu-limit
+             :usage cpu-usage
+             :type  :cpu}
+            (str cpu-limit " vCPU")
+            "graph-cpu")
+          (common/resource-pie
+            {:value disk
+             :limit disk-limit
+             :usage disk-usage
+             :type  :disk}
+            (str (common/render-capacity disk-limit false) " disk")
+            "graph-disk")
+          (common/resource-pie
+            {:value memory
+             :limit memory-limit
+             :usage memory-usage
+             :type  :memory}
+            (str (common/render-capacity memory-limit true) " ram")
+            "graph-memory"))
+        (when stale?
+          (common/stats-stale-note (get-in item [:stats :updatedAt])))]))))
 
 (rum/defc form-general < rum/static [node pinned?]
   (comp/card

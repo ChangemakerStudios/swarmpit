@@ -6,6 +6,7 @@
             [material.component.list.basic :as list]
             [swarmpit.component.state :as state]
             [swarmpit.component.toolbar :as toolbar]
+            [swarmpit.time :as time]
             [sablono.core :refer-macros [html]]
             [clojure.contrib.humanize :as humanize]
             [clojure.contrib.inflect :as inflect]
@@ -251,6 +252,13 @@
         "Swarmpit-stat-skeleton"
         id
         nil))))
+
+(rum/defc stats-stale-note < rum/static
+  [updated-at]
+  (comp/typography
+    {:variant   "caption"
+     :className "Swarmpit-stat-stale-note"}
+    (str "Stale, last report " (if updated-at (time/humanize updated-at) "unknown"))))
 
 (rum/defc resource-pie-empty < rum/reactive
   [id]

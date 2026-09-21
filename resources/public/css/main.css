@@ -1313,6 +1313,17 @@ html.dark .Swarmpit-login-instance {
     margin: 10px;
 }
 
+.Swarmpit-stat-stale {
+    opacity: 0.35;
+    filter: grayscale(1);
+}
+
+.Swarmpit-stat-stale-note {
+    display: block;
+    margin: -4px 10px 6px;
+    color: #6c757d;
+}
+
 .Swarmpit-stat-empty {
     height: 110px;
 }

@@ -6,7 +6,8 @@
             [swarmpit.influxdb.client :as influx]
             [swarmpit.influxdb.mapper :as m]
             [swarmpit.utils :refer [nano-> as-MiB]]
-            [swarmpit.config :refer [config]]))
+            [swarmpit.config :refer [config]])
+  (:import (java.time Instant)))
 
 (def nodes-memo (memo/ttl docker/nodes :ttl/threshold 5000))
 
@@ -38,6 +39,17 @@
 
 (def cache (atom (cache/basic-cache-factory {})))
 
+;; a drained, demoted or dead node's agent just stops pushing, so age is the only signal the numbers are dead
+(def stale-after-ms 120000)
+
+(defn- stale?
+  [stats]
+  (> (- (System/currentTimeMillis) (:receivedAt stats 0)) stale-after-ms))
+
+(defn- fresh-stats
+  []
+  (remove stale? (vals @cache)))
+
 (defn influx-configured? []
   (some? (config :influxdb-url)))
 
@@ -48,7 +60,7 @@
 (defn store-to-cache
   "Store stats in local cache"
   [stats]
-  (swap! cache assoc (:id stats) stats))
+  (swap! cache assoc (:id stats) (assoc stats :receivedAt (System/currentTimeMillis))))
 
 (defn store-to-db
   "Store stats in influxDB as timeseries"
@@ -66,18 +78,22 @@
 (defn node
   "Get latest node stats from local cache"
   [node-id]
-  (let [stats (get @cache node-id)]
-    (when stats
-      (assoc-in stats [:cpu :cores] (host-cpus node-id)))))
+  (when-let [stats (get @cache node-id)]
+    (-> stats
+        (dissoc :receivedAt)
+        (assoc :stale (stale? stats)
+               :updatedAt (str (Instant/ofEpochMilli (:receivedAt stats))))
+        (assoc-in [:cpu :cores] (host-cpus node-id)))))
 
 (defn task-raw
   "Get latest raw task stats from local cache"
   [task]
-  (->> (node (:nodeId task))
-       :tasks
-       (filter #(= (str "/" (:taskName task) "." (:id task))
-                   (:name %)))
-       (first)))
+  (let [stats (get @cache (:nodeId task))]
+    (when (and stats (not (stale? stats)))
+      (->> (:tasks stats)
+           (filter #(= (str "/" (:taskName task) "." (:id task))
+                       (:name %)))
+           (first)))))
 
 (defn task
   "Get latest standardized task stats from local cache"
@@ -110,11 +126,10 @@
 (defn cluster
   "Get latest cluster statistics"
   []
-  (let [cached-hosts (vals @cache)
-        active-hosts (active-hosts)
-        hosts (filter #(contains? active-hosts (:id %)) cached-hosts)
+  (let [active-hosts (active-hosts)
+        hosts (filter #(contains? active-hosts (:id %)) (fresh-stats))
         sum-fn (fn [ks] (reduce + (map #(get-in % ks) hosts)))
-        mean-fn (fn [ks] (/ (sum-fn ks) (count hosts)))]
+        mean-fn (fn [ks] (if (seq hosts) (/ (sum-fn ks) (count hosts)) 0))]
     {:resources (hosts-resources)
      :cpu       {:usage (mean-fn [:cpu :usedPercentage])
                  :cores (cluster-cpus)}
