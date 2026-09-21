@@ -304,10 +304,12 @@
    (ds/opt :user)            string?
    (ds/opt :dir)             string?
    (ds/opt :tty)             boolean?
-   (ds/opt :healthcheck)     {:test     [string?]
-                              :interval number?
-                              :timeout  number?
-                              :retries  number?}
+   ;; partial healthchecks are valid, e.g. compose overriding only interval/timeout and inheriting the image's test
+   (ds/opt :healthcheck)     (ds/maybe
+                               {(ds/opt :test)     (ds/maybe [string?])
+                                (ds/opt :interval) (ds/maybe number?)
+                                (ds/opt :timeout)  (ds/maybe number?)
+                                (ds/opt :retries)  (ds/maybe number?)})
    :logdriver                {:name string?
                               :opts [name-value]}
    (ds/opt :resources)       service-resources
