@@ -1337,6 +1337,54 @@ html.dark .Swarmpit-login-instance {
     color: rgba(0, 0, 0, 0.54);
 }
 
+/* Maintenance */
+
+.Swarmpit-maintenance-description {
+    margin-bottom: 8px !important;
+}
+
+.Swarmpit-maintenance-warning,
+.Swarmpit-maintenance-danger {
+    color: #c62828;
+}
+
+.Swarmpit-maintenance-warning {
+    margin: -4px 0 8px 32px !important;
+}
+
+.Swarmpit-maintenance-danger {
+    border-left: 3px solid #c62828;
+    padding: 4px 0 4px 12px;
+    margin-top: 12px;
+}
+
+.Swarmpit-maintenance-danger p {
+    margin: 0 0 6px;
+}
+
+.Swarmpit-maintenance-note {
+    color: rgba(0, 0, 0, 0.54);
+}
+
+.Swarmpit-maintenance-details summary {
+    cursor: pointer;
+}
+
+.Swarmpit-maintenance-output {
+    max-height: 240px;
+    overflow: auto;
+    margin: 6px 0 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.Swarmpit-maintenance-reclaimed {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
 /* Stats */
 
 .Swarmpit-stat {
@@ -1833,6 +1881,7 @@ html.dark .Swarmpit-table-footer {
     border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+html.dark .Swarmpit-maintenance-note,
 html.dark .Swarmpit-tree-group svg,
 html.dark .Swarmpit-tree-count,
 html.dark .Swarmpit-volume-anonymous,
@@ -2196,4 +2245,10 @@ html.dark .MuiListItem-root.Mui-selected {
 
 html.dark .MuiFormHelperText-root {
     color: rgba(255, 255, 255, 0.5);
+}
+
+html.dark .Swarmpit-maintenance-warning,
+html.dark .Swarmpit-maintenance-danger {
+    color: #ef9a9a;
+    border-color: #ef9a9a;
 }

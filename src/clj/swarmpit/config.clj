@@ -13,6 +13,7 @@
          :instance-name       nil
          :api-token-expiry-days nil
          :event-token         nil
+         :maintenance-image   "docker:cli"
          :password-hashing    {:alg        :pbkdf2+sha512
                                :iterations 200000}}))
 
@@ -27,7 +28,8 @@
         :work-dir            (env :swarmpit-workdir)
         :instance-name       (env :swarmpit-instance-name)
         :api-token-expiry-days (env :swarmpit-api-token-expiry-days)
-        :event-token         (env :swarmpit-event-token)}
+        :event-token         (env :swarmpit-event-token)
+        :maintenance-image   (env :swarmpit-maintenance-image)}
        (into {} (remove #(nil? (val %))))))
 
 (def ^:private dynamic (atom {}))

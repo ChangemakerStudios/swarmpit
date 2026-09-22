@@ -303,6 +303,22 @@
     ;; Admin
     ["/admin"
      {:swagger {:tags ["admin"]}}
+     ["/maintenance/prune"
+      {:name    :maintenance-prune
+       :swagger {:tags ["maintenance"]}
+       :get     (array-map
+                  :summary "Latest prune run (nil when none has run since startup)"
+                  :parameters {:header {:authorization string?}}
+                  :responses {200 {:body        any?
+                                   :description "Success"}}
+                  #?@(:clj [:handler handler/maintenance-prune-status]))
+       :post    (array-map
+                  :summary "Prune unused docker resources on every node"
+                  :parameters {:header {:authorization string?}
+                               :body   spec/maintenance-prune}
+                  :responses {202 {:body        any?
+                                   :description "Accepted"}}
+                  #?@(:clj [:handler handler/maintenance-prune]))}]
      ["/users"
       {:name    :users
        :swagger {:tags ["user"]}
@@ -941,7 +957,9 @@
    ["/users" :user-list]
    ["/users/create" :user-create]
    ["/users/:id" :user-info]
-   ["/users/:id/edit" :user-edit]])
+   ["/users/:id/edit" :user-edit]
+   ;; Maintenance
+   ["/maintenance" :maintenance]])
 
 #?(:cljs
    (def frontend-router (rf/router frontend {:data      {:coercion rss/coercion}
