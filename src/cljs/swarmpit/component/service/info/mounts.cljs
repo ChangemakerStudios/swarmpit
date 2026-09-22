@@ -11,21 +11,25 @@
 
 (enable-console-print!)
 
+(defn- driver-cell [item]
+  (if (= "tmpfs" (:type item))
+    "tmpfs"
+    (or (:driver item)
+        (get-in item [:volumeOptions :driver :name]))))
+
+(defn- read-only-cell [item]
+  (when (true? (:readOnly item))
+    "yes"))
+
 (def render-bind-metadata
   {:table {:summary [{:name      "Container path"
                       :render-fn (fn [item] (:containerPath item))}
                      {:name      "Host path"
                       :render-fn (fn [item] (:host item))}
                      {:name      "Read only"
-                      :render-fn (fn [item] (when (true? (:readOnly item))
-                                              "yes"))}]}
+                      :render-fn read-only-cell}]}
    :list  {:primary   (fn [item] (:containerPath item))
            :secondary (fn [item] (:host item))}})
-
-(defn- driver-cell [item]
-  (if (= "tmpfs" (:type item))
-    "tmpfs"
-    (get-in item [:volumeOptions :driver :name])))
 
 (def render-volume-metadata
   {:table {:summary [{:name      "Container path"
@@ -33,7 +37,7 @@
                      {:name      "Volume"
                       :render-fn (fn [item] (:host item))}
                      {:name      "Read only"
-                      :render-fn (fn [item] (:readOnly item))}
+                      :render-fn read-only-cell}
                      {:name      "Driver"
                       :render-fn driver-cell}]}
    :list  {:primary   (fn [item] (:containerPath item))
@@ -43,8 +47,7 @@
   {:table {:summary [{:name      "Container path"
                       :render-fn (fn [item] (:containerPath item))}
                      {:name      "Read only"
-                      :render-fn (fn [item] (when (true? (:readOnly item))
-                                              "yes"))}
+                      :render-fn read-only-cell}
                      {:name      "Driver"
                       :render-fn driver-cell}]}
    :list  {:primary   (fn [item] (:containerPath item))
