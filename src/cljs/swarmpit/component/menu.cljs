@@ -3,6 +3,7 @@
             [material.components :as comp]
             [swarmpit.component.common :as common]
             [swarmpit.component.state :as state]
+            [swarmpit.storage :as storage]
             [swarmpit.routes :as routes]
             [swarmpit.url :as url]
             [sablono.core :refer-macros [html]]
@@ -55,7 +56,12 @@
     :icon    (comp/svg icon/configs-path)
     :handler :config-list
     :route   "configs"
-    :domain  :config}])
+    :domain  :config}
+   {:name    "Prune"
+    :icon    (icon/delete-sweep {})
+    :handler :maintenance
+    :domain  :maintenance
+    :admin?  true}])
 
 (defn footer [docker-api docker-engine version]
   (comp/box
@@ -87,9 +93,9 @@
         {:color "primary"} (icon/open-in-new {:style {:fontSize 15}})))))
 
 (defn- filter-menu [docker-api]
-  (if (<= 1.30 docker-api)
-    menu
-    (filter #(not= :config (:domain %)) menu)))
+  (cond->> menu
+    (not (<= 1.30 docker-api)) (filter #(not= :config (:domain %)))
+    (not (storage/admin?)) (remove :admin?)))
 
 (rum/defc drawer-category < rum/static [name]
   (comp/list-item
