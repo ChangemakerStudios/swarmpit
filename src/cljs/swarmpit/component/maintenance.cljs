@@ -47,6 +47,12 @@
                                       "Build cache"]
                                volumes (conj "Anonymous volumes not used by a container")))}})
 
+;; no prune since startup answers 200 with an empty body, which arrives here as "" or {}
+(defn- as-job
+  [response]
+  (when (and (map? response) (:status response))
+    response))
+
 (defn- job-handler
   []
   (ajax/get
@@ -54,7 +60,7 @@
     {:state      [:loading?]
      :on-success (fn [{:keys [response origin?]}]
                    (when origin?
-                     (state/update-value [:job] response state/form-value-cursor)))}))
+                     (state/update-value [:job] (as-job response) state/form-value-cursor)))}))
 
 (defn- refresh-handler
   [_]
@@ -62,7 +68,7 @@
     (ajax/get
       (routes/path-for-backend :maintenance-prune)
       {:on-success (fn [{:keys [response]}]
-                     (state/update-value [:job] response state/form-value-cursor))})))
+                     (state/update-value [:job] (as-job response) state/form-value-cursor))})))
 
 (defn- close-dialog!
   []
@@ -76,7 +82,7 @@
      :state      [:processing?]
      :on-success (fn [{:keys [response]}]
                    (close-dialog!)
-                   (state/update-value [:job] response state/form-value-cursor))
+                   (state/update-value [:job] (as-job response) state/form-value-cursor))
      :on-error   (fn [{:keys [response]}]
                    (close-dialog!)
                    (message/error (str "Prune failed to start. " (:error response))))}))
@@ -119,7 +125,7 @@
 (rum/defc prune-card < rum/static [kind options running?]
   (let [{:keys [title description]} (get prunes kind)]
     (comp/card
-      {:className "Swarmpit-form-card Swarmpit-fcard"
+      {:className "Swarmpit-form-card Swarmpit-fcard Swarmpit-maintenance-card"
        :key       kind}
       (comp/box
         {:className "Swarmpit-fcard-header"}
