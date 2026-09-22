@@ -59,6 +59,7 @@
 (defn search [& args] (create-mui-icon "Search" args))
 (defn key [& args] (create-mui-icon "VpnKey" args))
 (defn settings [& args] (create-mui-icon "Settings" args))
+(defn delete-sweep [& args] (create-mui-icon "DeleteSweep" args))
 (defn receipt [& args] (create-mui-icon "Receipt" args))
 (defn storage [& args] (create-mui-icon "Storage" args))
 (defn device-hub [& args] (create-mui-icon "DeviceHub" args))

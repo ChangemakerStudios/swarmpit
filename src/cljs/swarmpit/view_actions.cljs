@@ -195,7 +195,7 @@
 
 (defmethod render :maintenance
   [_]
-  {:title "Maintenance"})
+  {:title "Prune"})
 
 ;;; User view
 
