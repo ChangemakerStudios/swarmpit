@@ -914,12 +914,29 @@
                                 (map :ConfigName)
                                 (set)) config-name)))
 
+(defn- with-volume-drivers
+  "A service spec only records a volume's driver when the service creates the
+   volume, so mounts of pre-existing volumes have none - look it up. Display
+   only, kept off :volumeOptions so it can't leak into an update payload."
+  [service]
+  (let [drivers (->> (volumes)
+                     (map (juxt :volumeName :driver))
+                     (into {}))]
+    (update service :mounts
+            (fn [mounts]
+              (mapv #(if (= "volume" (:type %))
+                       (assoc % :driver (or (get-in % [:volumeOptions :driver :name])
+                                            (get drivers (:host %))))
+                       %)
+                    mounts)))))
+
 (defn service
   [service-id]
-  (dmi/->service (dc/service service-id)
-                 (dc/service-tasks service-id)
-                 (dc/networks)
-                 (dc/info)))
+  (-> (dmi/->service (dc/service service-id)
+                     (dc/service-tasks service-id)
+                     (dc/networks)
+                     (dc/info))
+      (with-volume-drivers)))
 
 (defn service-networks
   [service-id]
