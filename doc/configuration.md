@@ -63,6 +63,10 @@ The secret is never read from the `Authorization` header: that is parsed as a JW
 Logged-in users are always allowed through, so the UI is unaffected either way.
 Default is `nil` (endpoint open, matching the agent's out-of-the-box behaviour).
 
+## `SWARMPIT_MAINTENANCE_IMAGE`
+Image the Admin → Maintenance prune jobs run in. A prune runs as a one-off global-job service, one task per ready and active node, with that node's `/var/run/docker.sock` mounted, so the image needs the docker cli on its path. Point it at a mirror when nodes can't pull from Docker Hub.
+Default is `docker:cli`.
+
 ## `SWARMPIT_INSTANCE_NAME`
 Custom name shown in place of the swarmpit logo in the sidebar and top bar, and prepended to the browser tab title as `{instance_name} :: {page} :: swarmpit`. Useful when running multiple swarmpit instances against different clusters so you can tell them apart at a glance.
 Default is `nil` (shows the swarmpit logo).

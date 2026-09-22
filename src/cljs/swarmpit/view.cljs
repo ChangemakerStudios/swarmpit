@@ -36,6 +36,7 @@
             [swarmpit.component.task.list :as task-list]
             [swarmpit.component.task.info :as task-info]
             [swarmpit.component.user.list :as user-list]
+            [swarmpit.component.maintenance :as maintenance]
             [swarmpit.component.user.info :as user-info]
             [swarmpit.component.user.create :as user-create]
             [swarmpit.component.user.edit :as user-edit]
@@ -243,6 +244,12 @@
 (defmethod dispatch :task-info
   [route]
   (task-info/form route))
+
+;;; Maintenance view
+
+(defmethod dispatch :maintenance
+  [route]
+  (maintenance/form route))
 
 ;;; User view
 

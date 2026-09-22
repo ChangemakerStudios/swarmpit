@@ -3,6 +3,7 @@
             [clojure.tools.logging :as log]
             [net.cgrand.enlive-html :as html :refer [deftemplate]]
             [swarmpit.api :as api]
+            [swarmpit.maintenance :as maintenance]
             [swarmpit.slt :as slt]
             [swarmpit.token :as token]
             [swarmpit.token.blacklist :as blacklist]
@@ -147,6 +148,14 @@
       (api/user-by-username)
       (select-keys [:username :email :role :api-token :service-dashboard :node-dashboard])
       (resp-ok)))
+
+(defn maintenance-prune
+  [{{:keys [body]} :parameters}]
+  (resp-accepted (maintenance/prune! body)))
+
+(defn maintenance-prune-status
+  [_]
+  (resp-ok (maintenance/status)))
 
 (defn users
   [_]

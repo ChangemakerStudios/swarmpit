@@ -191,6 +191,12 @@
   [_]
   {:title "Tasks"})
 
+;;; Maintenance view
+
+(defmethod render :maintenance
+  [_]
+  {:title "Maintenance"})
+
 ;;; User view
 
 (defmethod render :user-list

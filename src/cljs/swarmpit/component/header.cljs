@@ -54,7 +54,19 @@
         {:className "Swarmpit-appbar-menu-icon"}
         (comp/svg {:fontSize "small"} icon/users-path))
       (comp/list-item-text
-        {:primary "Users"}))))
+        {:primary "Users"}))
+    (comp/menu-item
+      {:className      "nested"
+       :disablePadding true
+       :onClick        (fn []
+                         (state/update-value [:menuAnchorEl] nil state/layout-cursor)
+                         (dispatch!
+                           (routes/path-for-frontend :maintenance)))}
+      (comp/list-item-icon
+        {:className "Swarmpit-appbar-menu-icon"}
+        (icon/settings {:fontSize "small"}))
+      (comp/list-item-text
+        {:primary "Maintenance"}))))
 
 (defn- system-dark? []
   (and (exists? js/window.matchMedia)

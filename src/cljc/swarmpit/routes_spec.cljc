@@ -403,6 +403,12 @@
    :_id                        string?
    :_rev                       string?})
 
+(def maintenance-prune
+  {:kind              string?
+   (ds/opt :all)      boolean?
+   (ds/opt :images)   boolean?
+   (ds/opt :volumes)  boolean?})
+
 (def user-create
   {(ds/opt :email) string?
    :password       string?
