@@ -112,8 +112,15 @@
            :variant   "outlined"
            :color     "primary"} "Clear filters")))))
 
+(declare list-rows)
+
 (rum/defc list < rum/reactive
   [title items filtered-items render-metadata onclick-handler toolbar-render-metadata]
+  (list-rows title items filtered-items filtered-items render-metadata onclick-handler toolbar-render-metadata))
+
+;; `rows` is what gets rendered; `filtered-items` still drives the count (rows may hold group headers)
+(rum/defc list-rows < rum/reactive
+  [title items filtered-items rows render-metadata onclick-handler toolbar-render-metadata]
   (comp/mui
     (html
       [:div.Swarmpit-form
@@ -138,7 +145,7 @@
                   {:className "Swarmpit-table-card-content"}
                   (list/responsive-footer
                     render-metadata
-                    filtered-items
+                    rows
                     onclick-handler))))))]])))
 
 (rum/defc list-grid < rum/reactive

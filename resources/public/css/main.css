@@ -1305,6 +1305,38 @@ html.dark .Swarmpit-login-instance {
     color: #6c757d;
 }
 
+/* Tree view (volumes grouped by prefix) */
+
+.Swarmpit-tree-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.Swarmpit-tree-group svg {
+    font-size: 20px;
+    color: rgba(0, 0, 0, 0.54);
+}
+
+.Swarmpit-tree-count {
+    color: rgba(0, 0, 0, 0.54);
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+}
+
+.Swarmpit-tree-child {
+    display: block;
+    padding-left: 26px;
+}
+
+.Swarmpit-volume-anonymous {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px;
+    color: rgba(0, 0, 0, 0.54);
+}
+
 /* Stats */
 
 .Swarmpit-stat {
@@ -1321,7 +1353,7 @@ html.dark .Swarmpit-login-instance {
 .Swarmpit-stat-stale-note {
     display: block;
     margin: -4px 10px 6px;
-    color: #6c757d;
+    color: rgba(0, 0, 0, 0.54);
 }
 
 .Swarmpit-stat-empty {
@@ -1801,6 +1833,10 @@ html.dark .Swarmpit-table-footer {
     border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+html.dark .Swarmpit-tree-group svg,
+html.dark .Swarmpit-tree-count,
+html.dark .Swarmpit-volume-anonymous,
+html.dark .Swarmpit-stat-stale-note,
 html.dark .Swarmpit-table-cell-secondary,
 html.dark .Swarmpit-table-head-tooltip {
     color: rgba(255, 255, 255, 0.50);
