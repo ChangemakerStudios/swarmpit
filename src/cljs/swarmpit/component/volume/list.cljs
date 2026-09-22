@@ -128,9 +128,6 @@
   (cond-> [{:name    (if tree? "Flat view" "Group by prefix")
             :variant "outlined"
             :onClick toggle-tree!}]
-    (storage/admin?) (conj {:name    "Prune…"
-                            :variant "outlined"
-                            :onClick #(dispatch! (routes/path-for-frontend :maintenance))})
     (storage/user?) (conj {:name     "New volume"
                            :onClick  #(dispatch! (routes/path-for-frontend :volume-create))
                            :primary  true

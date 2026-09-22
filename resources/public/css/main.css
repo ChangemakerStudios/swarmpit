@@ -1339,6 +1339,16 @@ html.dark .Swarmpit-login-instance {
 
 /* Maintenance */
 
+.Swarmpit-maintenance-card {
+    height: calc(100% - 16px);
+    display: flex;
+    flex-direction: column;
+}
+
+.Swarmpit-maintenance-card .Swarmpit-fcard-content {
+    flex: 1 1 auto;
+}
+
 .Swarmpit-maintenance-description {
     margin-bottom: 8px !important;
 }
