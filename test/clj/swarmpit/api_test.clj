@@ -3,6 +3,7 @@
             [digest :refer [digest]]
             [swarmpit.api :refer :all]
             [swarmpit.config :as cfg]
+            [swarmpit.yaml :as yaml]
             [swarmpit.couchdb.mapper.outbound :refer [->password]]))
 
 (deftest password-check-test
@@ -31,3 +32,43 @@
         (is (some? @new-hash))
         (is (true? (password-check pass @new-hash)))
         (is (true? (password-check-upgrade pass @new-hash nil)))))))
+
+(deftest merge-stackfile-service-test
+  (let [stored (yaml/->json "version: '3.8'
+services:
+  app:
+    image: app:1.0
+    environment:
+      PRICE: $$5
+  db:
+    image: postgres:16
+networks:
+  backend:
+    driver: overlay
+    attachable: true
+")
+        live {:services {:app {:image       "app:2.0"
+                               :environment {:PRICE "$5"}
+                               :networks    ["backend" "proxy"]}}
+              :networks {:backend {:driver "overlay"}
+                         :proxy   {:external true}}}
+        merged (merge-stackfile-service stored live)]
+
+    (testing "edited service replaced, $ re-escaped for stack deploy"
+      (is (= {:image       "app:2.0"
+              :environment {:PRICE "$$5"}
+              :networks    ["backend" "proxy"]}
+             (get-in merged [:services :app]))))
+
+    (testing "other services and top-level keys untouched, order kept"
+      (is (= "3.8" (:version merged)))
+      (is (= "postgres:16" (get-in merged [:services :db :image])))
+      (is (= [:version :services :networks] (keys merged)))
+      (is (= [:app :db] (keys (:services merged)))))
+
+    (testing "existing resources kept as written, new ones added"
+      (is (= {:driver "overlay" :attachable true} (get-in merged [:networks :backend])))
+      (is (= {:external true} (get-in merged [:networks :proxy]))))
+
+    (testing "round-trips through yaml"
+      (is (= merged (yaml/->json (yaml/->yaml merged)))))))

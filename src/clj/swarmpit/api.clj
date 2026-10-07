@@ -1,5 +1,6 @@
 (ns swarmpit.api
   (:require [clojure.set :refer [rename-keys]]
+            [clojure.walk :refer [postwalk]]
             [buddy.hashers :as hashers]
             [digest :refer [digest]]
             [swarmpit.utils :refer [merge-data]]
@@ -836,6 +837,8 @@
 
 ;;; Service API
 
+(declare sync-stackfile-service remove-stackfile-service)
+
 (defn services
   ([]
    (services nil))
@@ -1009,7 +1012,9 @@
 
 (defn delete-service
   [service-id]
-  (dc/delete-service service-id))
+  (let [service (service service-id)]
+    (dc/delete-service service-id)
+    (remove-stackfile-service service)))
 
 (defn- standardize-service-configs
   [service]
@@ -1088,7 +1093,8 @@
     (dc/update-service (service-auth owner service)
                        service-id
                        (:version service)
-                       (merge-service service-origin service-delta))))
+                       (merge-service service-origin service-delta))
+    (sync-stackfile-service service-id)))
 
 (defn redeploy-service
   ([owner service-id new-tag]
@@ -1110,7 +1116,10 @@
        (-> service-origin
            :Spec
            (update-in [:TaskTemplate :ForceUpdate] inc)
-           (assoc-in [:TaskTemplate :ContainerSpec :Image] image))))))
+           (assoc-in [:TaskTemplate :ContainerSpec :Image] image)))
+     ;; only a tag change alters the stackfile; plain/auto redeploys just move the digest
+     (when (not= effective-tag (standardize-repository-tag repository-tag))
+       (sync-stackfile-service service-id)))))
 
 (defn rollback-service
   [owner service-id]
@@ -1121,7 +1130,8 @@
       service-id
       (get-in service-origin [:Version :Index])
       (-> service-origin
-          :PreviousSpec))))
+          :PreviousSpec))
+    (sync-stackfile-service service-id)))
 
 (defn stop-service
   [owner service-id]
@@ -1295,6 +1305,48 @@
   (let [yaml (some-> (stack stack-name) (->compose) (->yaml))]
     (when yaml
       (str/replace yaml "$" "$$"))))
+
+(defn- update-stackfile-compose
+  [stack-name f]
+  (when-let [{:keys [spec] :as stackfile-origin} (some-> stack-name (cc/stackfile))]
+    (try
+      (cc/update-stackfile stackfile-origin
+                           {:spec         (assoc spec :compose (->yaml (f (yaml/->json (:compose spec)))))
+                            :previousSpec spec})
+      ;; the docker change already landed; a stale stackfile beats failing the request
+      (catch Exception e
+        (log/warn e "Stackfile" stack-name "not synced with service change")))))
+
+(defn- add-missing
+  [stored live]
+  (reduce-kv (fn [m k v] (if (contains? m k) m (assoc m k v))) stored live))
+
+(defn merge-stackfile-service
+  "Replace the single service in live compose within stored compose, adding
+   top-level resources it now references but keeping existing ones as written."
+  [compose live]
+  (let [live (postwalk #(if (string? %) (str/replace % "$" "$$") %) live)
+        [service-key service-compose] (first (:services live))]
+    (reduce (fn [c k]
+              (if-let [resources (get live k)]
+                (update c k add-missing resources)
+                c))
+            (assoc-in compose [:services service-key] service-compose)
+            [:networks :volumes :configs :secrets])))
+
+(defn sync-stackfile-service
+  "Service edits bypass the stored stackfile, so a later stack redeploy would
+   silently revert them."
+  [service-id]
+  (let [{stack-name :stack :as service} (service service-id)]
+    (update-stackfile-compose
+      stack-name
+      #(merge-stackfile-service % (->compose (stack stack-name [service]))))))
+
+(defn remove-stackfile-service
+  [{stack-name :stack :as service}]
+  (let [service-key (keyword (du/alias :serviceName stack-name service))]
+    (update-stackfile-compose stack-name #(update % :services dissoc service-key))))
 
 (defn service-compose
   [service-name]
