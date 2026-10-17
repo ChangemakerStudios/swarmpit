@@ -4,10 +4,16 @@
   (:require [clojure.string :as str]
             [swarmpit.ip :as ip]))
 
+(defn stack-prefixed?
+  [stack name]
+  "Check whether object name carries the stack prefix docker adds eg. swarmpit_app"
+  (and (some? stack) (str/starts-with? name (str stack "_"))))
+
 (defn trim-stack
   [stack name]
-  "Removes stack name from object name eg. swarmpit_app -> app"
-  (if (some? stack)
+  "Removes stack name from object name eg. swarmpit_app -> app. Names declared
+   explicitly in compose (`name: seq_ecn`) carry no prefix and stay as they are."
+  (if (stack-prefixed? stack name)
     (subs name (+ 1 (count stack)))
     name))
 

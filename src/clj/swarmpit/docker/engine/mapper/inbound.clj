@@ -471,7 +471,8 @@
       :labels (:Labels volume)
       :options (map->name-value (:Options volume))
       :mountpoint (:Mountpoint volume)
-      :scope (:Scope volume))))
+      :scope (:Scope volume)
+      :cluster (some? (:ClusterVolume volume)))))
 
 (defn ->volumes
   [volumes]

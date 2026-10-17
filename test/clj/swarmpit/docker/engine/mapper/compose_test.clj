@@ -1,6 +1,6 @@
 (ns swarmpit.docker.engine.mapper.compose-test
   (:require [clojure.test :refer :all]
-            [swarmpit.docker.engine.mapper.compose :refer [service]]))
+            [swarmpit.docker.engine.mapper.compose :refer [service volume]]))
 
 (defn- svc [overrides]
   (merge {:serviceName "web"
@@ -133,3 +133,19 @@
                                            :placement     []
                                            :maxReplicas   1}})
                    [:deploy :placement :max_replicas_per_node]))))
+
+(deftest stack-volume-mount-keeps-explicit-name
+  (is (= ["seq_ecn:/data" "cache:/cache"]
+         (:volumes (-> (service "ecn" (svc {:mounts [{:type "volume" :host "seq_ecn"
+                                                      :containerPath "/data" :stack "ecn"}
+                                                     {:type "volume" :host "ecn_cache"
+                                                      :containerPath "/cache" :stack "ecn"}]}))
+                       :web)))))
+
+(deftest stack-volume-restates-explicit-name
+  (let [rendered (volume "ecn" {:volumeName "seq_ecn" :driver "local" :stack "ecn"})]
+    (is (= [:seq_ecn] (keys rendered)))
+    (is (= "seq_ecn" (get-in rendered [:seq_ecn :name]))))
+  (let [rendered (volume "ecn" {:volumeName "ecn_cache" :driver "local" :stack "ecn"})]
+    (is (= [:cache] (keys rendered)))
+    (is (nil? (get-in rendered [:cache :name])))))

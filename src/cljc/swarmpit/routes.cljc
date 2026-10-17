@@ -830,15 +830,19 @@
       :swagger {:tags ["volume"]}
       :get     (array-map
                  :summary "Volume info"
+                 :description "Set cluster to target the swarm cluster volume when a node-local volume shares its name"
                  :parameters {:header {:authorization string?}
-                              :path   {:name string?}}
+                              :path   {:name string?}
+                              :query  {(ds/opt :cluster) boolean?}}
                  :responses {200 {:body        spec/volume
                                   :description "Success"}}
                  #?@(:clj [:handler handler/volume]))
       :delete  (array-map
                  :summary "Delete volume"
+                 :description "Set cluster to target the swarm cluster volume when a node-local volume shares its name"
                  :parameters {:header {:authorization string?}
-                              :path   {:name string?}}
+                              :path   {:name string?}
+                              :query  {(ds/opt :cluster) boolean?}}
                  :responses {200 {:body        nil
                                   :description "Success"}}
                  #?@(:clj [:handler handler/volume-delete]))}]

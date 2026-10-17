@@ -325,8 +325,8 @@
        (resp-ok)))
 
 (defn volume
-  [{{:keys [path]} :parameters}]
-  (->> (api/volume (:name path))
+  [{{:keys [path query]} :parameters}]
+  (->> (api/volume (:name path) (:cluster query))
        (resp-ok)))
 
 (defn volume-services
@@ -340,8 +340,8 @@
        (resp-created)))
 
 (defn volume-delete
-  [{{:keys [path]} :parameters}]
-  (api/delete-volume (:name path))
+  [{{:keys [path query]} :parameters}]
+  (api/delete-volume (:name path) (:cluster query))
   (resp-ok))
 
 ;; Secret handler

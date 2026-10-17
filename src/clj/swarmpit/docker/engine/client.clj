@@ -178,10 +178,13 @@
       :body))
 
 (defn delete-volume
-  [name]
-  (-> (execute {:method :DELETE
-                :api    (str "/volumes/" name)})
-      :body))
+  ([name]
+   (delete-volume name false))
+  ([name force?]
+   (-> (execute {:method  :DELETE
+                 :api     (str "/volumes/" name)
+                 :options {:query-params {:force force?}}})
+       :body)))
 
 (defn create-volume
   [volume]

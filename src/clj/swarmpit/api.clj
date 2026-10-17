@@ -227,14 +227,68 @@
    (-> (dc/volumes label)
        (dmi/->volumes))))
 
-(defn volume
+(defn- volume-error
+  [status message]
+  (throw (ex-info (str "Volume error: " message)
+                  {:status status
+                   :type   :api
+                   :body   {:error message}})))
+
+(defn- volumes-named
+  "Docker resolves a name to the node-local volume before the cluster one, so a
+   cluster volume sharing a local volume's name is only reachable via the list."
   [volume-name]
-  (-> (dc/volume volume-name)
-      (dmi/->volume)))
+  (->> (:Volumes (dc/volumes))
+       (filter #(= volume-name (:Name %)))
+       (group-by #(if (:ClusterVolume %) :cluster :local))))
+
+(defn volume
+  ([volume-name]
+   (volume volume-name false))
+  ([volume-name cluster?]
+   (dmi/->volume
+     (if cluster?
+       (or (first (:cluster (volumes-named volume-name)))
+           (volume-error 404 (str "Cluster volume " volume-name " not found")))
+       (dc/volume volume-name)))))
+
+(defn- cluster-volume-mounted?
+  "Only `cluster` mounts use a cluster volume; a `volume` mount of the same name
+   is a node-local volume that merely shares it."
+  [volume-name]
+  (->> (dc/services)
+       (mapcat #(get-in % [:Spec :TaskTemplate :ContainerSpec :Mounts]))
+       (some #(and (= "cluster" (:Type %))
+                   (= volume-name (:Source %))))))
 
 (defn delete-volume
-  [volume-name]
-  (dc/delete-volume volume-name))
+  "A swarm cluster volume is only removed once its CSI plugin confirms; without
+   one (e.g. created with driver local) a plain delete leaves it pending forever,
+   so it is forced. A forced delete also removes an unused local volume of the
+   same name, so that case is refused."
+  ([volume-name]
+   (delete-volume volume-name false))
+  ([volume-name cluster?]
+   (let [{:keys [local cluster]} (volumes-named volume-name)]
+     (cond
+       (and (not cluster?) (seq local))
+       (dc/delete-volume volume-name)
+
+       (empty? cluster)
+       (if cluster?
+         (volume-error 404 (str "Cluster volume " volume-name " not found"))
+         (dc/delete-volume volume-name))
+
+       (cluster-volume-mounted? volume-name)
+       (volume-error 409 (str "Cluster volume " volume-name " is used by a service"))
+
+       (seq local)
+       (volume-error 409 (str "A local volume named " volume-name " exists on this node and Docker "
+                              "would remove it too. Run docker volume rm -f " volume-name
+                              " on a manager without a local copy."))
+
+       :else
+       (dc/delete-volume volume-name true)))))
 
 (defn create-volume
   [volume]

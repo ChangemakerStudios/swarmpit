@@ -29,18 +29,22 @@
     {:on-success (fn [{:keys [response]}]
                    (state/update-value [:services] response state/form-value-cursor))}))
 
+(defn- cluster-query
+  [cluster?]
+  (when cluster? {:cluster true}))
+
 (defn- volume-handler
-  [volume-name]
+  [volume-name cluster?]
   (ajax/get
-    (routes/path-for-backend :volume {:name volume-name})
+    (routes/path-for-backend :volume {:name volume-name} (cluster-query cluster?))
     {:state      [:loading?]
      :on-success (fn [{:keys [response]}]
                    (state/update-value [:volume] response state/form-value-cursor))}))
 
 (defn- delete-volume-handler
-  [volume-name]
+  [volume-name cluster?]
   (ajax/delete
-    (routes/path-for-backend :volume {:name volume-name})
+    (routes/path-for-backend :volume {:name volume-name} (cluster-query cluster?))
     {:on-success (fn [_]
                    (dispatch!
                      (routes/path-for-frontend :volume-list))
@@ -54,12 +58,12 @@
   {:primary   (fn [item] (:name item))
    :secondary (fn [item] (:value item))})
 
-(rum/defc form-general < rum/static [{:keys [id stack volumeName driver mountpoint scope]}
+(rum/defc form-general < rum/static [{:keys [id stack volumeName driver mountpoint scope cluster]}
                                      services]
   (comp/card
     {:className "Swarmpit-form-card"}
     (form/item-main "Driver" driver false)
-    (form/item-main "Scope" scope)
+    (form/item-main "Scope" (if cluster (str scope " (swarm cluster volume)") scope))
     (form/item-main "Mountpoint" mountpoint)
     (when (and stack (not-empty services))
       (comp/box
@@ -99,9 +103,9 @@
 
 (def mixin-init-form
   (mixin/init-form
-    (fn [{{:keys [name]} :params}]
+    (fn [{{:keys [name cluster]} :params}]
       (init-form-state)
-      (volume-handler name)
+      (volume-handler name (= "true" cluster))
       (volume-services-handler name))))
 
 (rum/defc form-info < rum/static [{:keys [volume services]}]
@@ -109,7 +113,7 @@
     (html
       [:div.Swarmpit-form
        (dialog/confirm-dialog
-         #(delete-volume-handler (:volumeName volume))
+         #(delete-volume-handler (:volumeName volume) (:cluster volume))
          "Delete volume?"
          "Delete")
        (comp/container

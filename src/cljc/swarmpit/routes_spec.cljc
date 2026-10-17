@@ -335,6 +335,7 @@
    :mountpoint string?
    :options    [name-value]
    :scope      string?
+   :cluster    boolean?
    :stack      string?
    :volumeName string?
    :size       number?})
