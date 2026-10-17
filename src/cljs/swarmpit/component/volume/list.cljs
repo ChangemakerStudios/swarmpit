@@ -85,18 +85,24 @@
         (html [:span.Swarmpit-tree-child label])
         label))))
 
+(defn- render-driver
+  [{:keys [driver cluster]}]
+  (if cluster (str driver " (cluster)") driver))
+
 (def render-metadata
   {:table {:summary [{:name      "Name"
                       :render-fn render-name}
                      {:name      "Driver"
-                      :render-fn (fn [item] (:driver item))}]}
+                      :render-fn render-driver}]}
    :list  {:primary   render-name
-           :secondary (fn [item] (:driver item))}})
+           :secondary render-driver}})
 
 (defn onclick-handler
   [item]
   (when-not (:group item)
-    (routes/path-for-frontend :volume-info {:name (:volumeName item)})))
+    (routes/path-for-frontend :volume-info
+                              {:name (:volumeName item)}
+                              (when (:cluster item) {:cluster true}))))
 
 (defn- volumes-handler
   []
