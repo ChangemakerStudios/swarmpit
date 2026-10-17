@@ -30,3 +30,12 @@
                        ["http://localhost:5000"             "localhost:5000/app:latest"]]]
     (is (= (du/registry-address url) (du/distribution-id image))
         (str "registry url " url " must match the address parsed from " image))))
+
+(deftest trim-stack-removes-prefix
+  (is (= "app" (du/trim-stack "swarmpit" "swarmpit_app")))
+  (is (= "app" (du/trim-stack nil "app"))))
+
+(deftest trim-stack-keeps-explicitly-named-objects
+  (is (= "seq_ecn" (du/trim-stack "ecn" "seq_ecn")))
+  (is (= "seq_thaleslunch" (du/trim-stack "thales-lunch" "seq_thaleslunch")))
+  (is (= "ecnx_data" (du/trim-stack "ecn" "ecnx_data"))))

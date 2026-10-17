@@ -2,7 +2,7 @@
   (:require [clojure.set :refer [rename-keys]]
             [flatland.ordered.map :refer [ordered-map]]
             [swarmpit.utils :refer [clean select-keys* name-value->map name-value->sorted-map]]
-            [swarmpit.docker.utils :refer [trim-stack in-stack? alias]]
+            [swarmpit.docker.utils :refer [trim-stack in-stack? stack-prefixed? alias]]
             [swarmpit.docker.engine.mapper.inbound :as mi]
             [swarmpit.yaml :refer [->yaml]])
   (:refer-clojure :exclude [alias]))
@@ -134,11 +134,19 @@
               :resources      {:reservations (-> service :resources :reservation resource)
                                :limits       (-> service :resources :limit resource)}})})
 
+(defn- explicit-name
+  "A stack resource declared with `name:` lacks the stack prefix; restate the name
+   or a redeploy would create a prefixed twin."
+  [stack-name resource-name]
+  (when-not (stack-prefixed? stack-name resource-name)
+    resource-name))
+
 (defn network
   [stack-name net]
   {(keyword (alias :networkName stack-name net))
    (if (in-stack? stack-name net)
-     {:driver      (:driver net)
+     {:name        (explicit-name stack-name (:networkName net))
+      :driver      (:driver net)
       :internal    (when (:internal net) true)
       :driver_opts (-> (:options net)
                        (name-value->map)
@@ -149,7 +157,8 @@
   [stack-name volume]
   {(keyword (alias :volumeName stack-name volume))
    (if (in-stack? stack-name volume)
-     {:driver      (:driver volume)
+     {:name        (explicit-name stack-name (:volumeName volume))
+      :driver      (:driver volume)
       :driver_opts (-> volume :options (name-value->map))}
      {:external true})})
 
