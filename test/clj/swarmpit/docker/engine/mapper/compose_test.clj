@@ -17,6 +17,16 @@
 (defn- rendered [overrides]
   (-> (service nil (svc overrides)) :web))
 
+(deftest image-tagged-renders-without-digest
+  (is (= "mongo:8.2"
+         (:image (rendered {:repository {:image "mongo:8.2" :name "mongo" :tag "8.2"
+                                         :imageDigest "sha256:abc"}})))))
+
+(deftest image-digest-only-keeps-digest
+  (is (= "mongo@sha256:abc"
+         (:image (rendered {:repository {:image "mongo" :name "mongo" :tag ""
+                                         :imageDigest "sha256:abc"}})))))
+
 (deftest ports-short-syntax-for-plain-tcp-ingress
   (is (= ["8080:80"]
          (:ports (rendered {:ports [{:hostPort 8080 :containerPort 80

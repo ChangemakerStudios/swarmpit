@@ -1158,11 +1158,17 @@
          service (dmi/->service service-origin)
          repository-name (get-in service [:repository :name])
          repository-tag (get-in service [:repository :tag])
+         current-digest (get-in service [:repository :imageDigest])
+         ;; digest-only (repo@sha256:..) is a deliberate pin - there is no tag
+         ;; to re-resolve, and treating it as :latest can jump a major version
+         pinned? (and (nil? new-tag) (str/blank? repository-tag) (some? current-digest))
          effective-tag (standardize-repository-tag (or new-tag repository-tag))
-         image-digest (or digest (repository-digest owner repository-name effective-tag))
-         image (if (str/blank? image-digest)
-                 (str repository-name ":" effective-tag)
-                 (str repository-name ":" effective-tag "@" image-digest))]
+         image-digest (when-not pinned?
+                        (or digest (repository-digest owner repository-name effective-tag)))
+         image (cond
+                 pinned? (str repository-name "@" current-digest)
+                 (str/blank? image-digest) (str repository-name ":" effective-tag)
+                 :else (str repository-name ":" effective-tag "@" image-digest))]
      (dc/update-service
        (service-auth owner service)
        service-id
@@ -1172,7 +1178,8 @@
            (update-in [:TaskTemplate :ForceUpdate] inc)
            (assoc-in [:TaskTemplate :ContainerSpec :Image] image)))
      ;; only a tag change alters the stackfile; plain/auto redeploys just move the digest
-     (when (not= effective-tag (standardize-repository-tag repository-tag))
+     (when (and (not pinned?)
+                (not= effective-tag (standardize-repository-tag repository-tag)))
        (sync-stackfile-service service-id)))))
 
 (defn rollback-service
