@@ -33,26 +33,29 @@
                 (debug "Service" id (str "(" name ")") "autoredeploy check: image not found in registry")
                 (error "Service" id (str "(" name ")") "autoredeploy failed!" (ex-data e))))))))))
 
-(defonce ^:private reported-task-failures (atom #{}))
+(defonce ^:private reported-task-failures (atom nil))
 
 (defn- task-failure-job
   "Surface task placement failures in the log. A service update returns 200 the
    moment the daemon accepts it - the swarm only rejects the task afterwards, on
    the node, so failures like \"no basic auth credentials\" never reach our log
-   on their own. Each task is reported once; the id set is reset when it grows
-   past a sane bound so it cannot leak."
+   on their own. The first run only baselines the failures already in the
+   swarm's task history (old restarts, reboots) so they aren't dumped on boot.
+   After that each new failure is reported once. The set is replaced with the
+   ids still present every run, so it stays bounded by docker's own history."
   []
   (try
     (let [failed (->> (api/tasks)
                       (filter #(contains? #{"rejected" "failed"} (:state %)))
-                      (filter #(some? (get-in % [:status :error]))))]
-      (when (< 2000 (count @reported-task-failures))
-        (reset! reported-task-failures #{}))
-      (doseq [{:keys [id serviceName nodeName state] :as task} failed]
-        (when-not (contains? @reported-task-failures id)
-          (swap! reported-task-failures conj id)
-          (warn "Task" id (str "(" serviceName ")") state "on node" nodeName
-                "-" (get-in task [:status :error])))))
+                      (filter #(some? (get-in % [:status :error]))))
+          reported @reported-task-failures]
+      (if (nil? reported)
+        (debug "Task failure check: baselined" (count failed) "historical failures")
+        (doseq [{:keys [id serviceName nodeName state] :as task} failed]
+          (when-not (contains? reported id)
+            (warn "Task" id (str "(" serviceName ")") state "on node" nodeName
+                  "-" (get-in task [:status :error])))))
+      (reset! reported-task-failures (into #{} (map :id) failed)))
     (catch Exception e
       (debug "Task failure check skipped:" (.getMessage e)))))
 
