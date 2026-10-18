@@ -63,11 +63,19 @@
        (filter #(= (% defaults) (% map)))
        (apply dissoc map)))
 
+(defn- image
+  "A digest-only image (repo@sha256:..) has no tag to fall back on - dropping
+   the digest would turn it into repo, i.e. :latest, on the next stack deploy."
+  [{:keys [image tag imageDigest]}]
+  (if (and (empty? tag) (some? imageDigest))
+    (str image "@" imageDigest)
+    image))
+
 (defn service
   [stack-name service]
   {(keyword (alias :serviceName (or stack-name (:stack service)) service))
    (ordered-map
-     :image (-> service :repository :image)
+     :image (image (:repository service))
      :entrypoint (some->> service :entrypoint)
      :command (some->> service :command)
      :hostname (-> service :hostname)

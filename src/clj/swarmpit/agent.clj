@@ -1,6 +1,7 @@
 (ns swarmpit.agent
   (:require [swarmpit.api :as api]
             [chime.core :as chime]
+            [clojure.string :as str]
             [taoensso.timbre :refer [info debug warn error]])
   (:import (clojure.lang ExceptionInfo)
            (java.time Instant Duration)))
@@ -10,6 +11,8 @@
   (when-let [services (try
                         (->> (api/services)
                              (filter #(get-in % [:deployment :autoredeploy]))
+                             ;; digest-only images are pinned; nothing to track
+                             (filter #(not (str/blank? (get-in % [:repository :tag]))))
                              (filter #(not= "updating" (get-in % [:status :update]))))
                         (catch Exception e
                           (error "Autoredeploy: failed to fetch services" (.getMessage e))
