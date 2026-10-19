@@ -155,7 +155,17 @@
   (ajax/get
     (routes/path-for-backend :volumes)
     {:on-success (fn [{:keys [response]}]
-                   (state/update-value [:volumes] response form-state-cursor))}))
+                   ;; One entry per name, the shared volume over any node-local copy of it, so
+                   ;; normalize-volume doesn't copy a shadowing local driver into the mount.
+                   (state/update-value [:volumes]
+                                       (->> response
+                                            (sort-by #(some? (:node %)))
+                                            (reduce (fn [acc v]
+                                                      (if (some #(= (:volumeName v) (:volumeName %)) acc)
+                                                        acc
+                                                        (conj acc v))) [])
+                                            (sort-by :volumeName))
+                                       form-state-cursor))}))
 
 (rum/defc form < rum/reactive []
   (let [{:keys [volumes]} (state/react form-state-cursor)

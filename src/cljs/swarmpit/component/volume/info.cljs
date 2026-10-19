@@ -29,22 +29,24 @@
     {:on-success (fn [{:keys [response]}]
                    (state/update-value [:services] response state/form-value-cursor))}))
 
-(defn- cluster-query
-  [cluster?]
-  (when cluster? {:cluster true}))
+(defn- volume-query
+  [cluster? node]
+  (cond-> nil
+    cluster? (assoc :cluster true)
+    node (assoc :node node)))
 
 (defn- volume-handler
-  [volume-name cluster?]
+  [volume-name cluster? node]
   (ajax/get
-    (routes/path-for-backend :volume {:name volume-name} (cluster-query cluster?))
+    (routes/path-for-backend :volume {:name volume-name} (volume-query cluster? node))
     {:state      [:loading?]
      :on-success (fn [{:keys [response]}]
                    (state/update-value [:volume] response state/form-value-cursor))}))
 
 (defn- delete-volume-handler
-  [volume-name cluster?]
+  [volume-name cluster? node]
   (ajax/delete
-    (routes/path-for-backend :volume {:name volume-name} (cluster-query cluster?))
+    (routes/path-for-backend :volume {:name volume-name} (volume-query cluster? node))
     {:on-success (fn [_]
                    (dispatch!
                      (routes/path-for-frontend :volume-list))
@@ -58,13 +60,25 @@
   {:primary   (fn [item] (:name item))
    :secondary (fn [item] (:value item))})
 
-(rum/defc form-general < rum/static [{:keys [id stack volumeName driver mountpoint scope cluster]}
+(rum/defc form-general < rum/static [{:keys [id stack volumeName driver mountpoint scope cluster nodeName remote shadows]}
                                      services]
   (comp/card
     {:className "Swarmpit-form-card"}
     (form/item-main "Driver" driver false)
     (form/item-main "Scope" (if cluster (str scope " (swarm cluster volume)") scope))
+    (form/item-main "Node" (or nodeName "all nodes"))
     (form/item-main "Mountpoint" mountpoint)
+    (when shadows
+      (comp/typography
+        {:className "Swarmpit-volume-shadows Swarmpit-form-card-note"
+         :variant   "body2"}
+        "A shared volume has the same name. A task placed on this node mounts this local copy instead."))
+    (when remote
+      (comp/typography
+        {:className "Swarmpit-form-card-note"
+         :variant   "body2"}
+        (str "Swarmpit can only delete volumes on its own node; run docker volume rm " volumeName
+             " on " nodeName ".")))
     (when (and stack (not-empty services))
       (comp/box
         {}
@@ -90,12 +104,14 @@
         options
         nil))))
 
-(def form-actions
-  [{:onClick #(state/update-value [:open] true dialog/dialog-cursor)
-    :icon    (comp/svg icon/trash-path)
-    :color   "default"
-    :variant "outlined"
-    :name    "Delete"}])
+(defn- form-actions
+  [{:keys [remote]}]
+  (when-not remote
+    [{:onClick #(state/update-value [:open] true dialog/dialog-cursor)
+      :icon    (comp/svg icon/trash-path)
+      :color   "default"
+      :variant "outlined"
+      :name    "Delete"}]))
 
 (defn- init-form-state
   []
@@ -103,9 +119,9 @@
 
 (def mixin-init-form
   (mixin/init-form
-    (fn [{{:keys [name cluster]} :params}]
+    (fn [{{:keys [name cluster node]} :params}]
       (init-form-state)
-      (volume-handler name (= "true" cluster))
+      (volume-handler name (= "true" cluster) node)
       (volume-services-handler name))))
 
 (rum/defc form-info < rum/static [{:keys [volume services]}]
@@ -113,7 +129,7 @@
     (html
       [:div.Swarmpit-form
        (dialog/confirm-dialog
-         #(delete-volume-handler (:volumeName volume) (:cluster volume))
+         #(delete-volume-handler (:volumeName volume) (:cluster volume) (:node volume))
          "Delete volume?"
          "Delete")
        (comp/container
@@ -126,7 +142,7 @@
              (comp/grid
                {:item true
                 :xs   12}
-               (toolbar/toolbar "Volume" (:volumeName volume) form-actions)))
+               (toolbar/toolbar "Volume" (:volumeName volume) (form-actions volume))))
            (comp/grid
              {:item true
               :xs   12}

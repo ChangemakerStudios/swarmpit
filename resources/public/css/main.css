@@ -1337,6 +1337,14 @@ html.dark .Swarmpit-login-instance {
     color: rgba(0, 0, 0, 0.54);
 }
 
+.Swarmpit-volume-shadows {
+    color: #c62828;
+}
+
+.Swarmpit-form-card-note {
+    padding: 8px 16px 12px;
+}
+
 /* Maintenance */
 
 .Swarmpit-maintenance-card {
@@ -2258,7 +2266,8 @@ html.dark .MuiFormHelperText-root {
 }
 
 html.dark .Swarmpit-maintenance-warning,
-html.dark .Swarmpit-maintenance-danger {
+html.dark .Swarmpit-maintenance-danger,
+html.dark .Swarmpit-volume-shadows {
     color: #ef9a9a;
     border-color: #ef9a9a;
 }
