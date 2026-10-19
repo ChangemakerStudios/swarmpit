@@ -44,60 +44,103 @@
     (storage/add tree-storage-key (str tree?))
     (state/update-value [:tree?] tree? state/form-state-cursor)))
 
-(defn- tree-rows
-  "Collapse volumes sharing a prefix (text before the first `_`) under one header row.
-   A prefix needs two members to become a group; anonymous volumes always group."
+(defn- copies
+  "Copies of one name - per-node local volumes, plus a shared one - collapse under
+   a single row; a lone volume stays as it is. items must be sorted by name."
   [items expanded force-open?]
-  (let [groups (group-by (comp group-key :volumeName) items)
-        grouped? (fn [k] (and k (or (= ::anonymous k) (< 1 (count (get groups k))))))]
-    (->> items
-         (map #(let [k (group-key (:volumeName %))]
-                 (if (grouped? k) {:group k} %)))
-         (distinct)
-         (mapcat (fn [{k :group :as entry}]
-                   (if k
-                     (let [members (get groups k)
-                           open? (or force-open? (contains? expanded k))]
-                       (cons {:group k :count (count members) :open? open?}
-                             (when open? (map #(assoc % :child? true) members))))
-                     [entry]))))))
+  (->> (partition-by :volumeName items)
+       (mapcat (fn [[v :as vs]]
+                 (if (= 1 (count vs))
+                   vs
+                   (let [k [::copies (:volumeName v)]
+                         open? (or force-open? (contains? expanded k))]
+                     (cons {:group k :volumeName (:volumeName v) :copies vs :open? open?}
+                           (when open? (map #(assoc % :copy? true) vs)))))))))
 
-(defn- group-label
-  [{k :group n :count :keys [open?]}]
-  (html
-    [:span.Swarmpit-tree-group
-     {:onClick (fn [e]
-                 (.preventDefault e)
-                 (.stopPropagation e)
-                 (toggle-group! k))}
-     (if open? (icon/expand-more) (icon/chevron-right))
-     [:span (if (= ::anonymous k) "anonymous" k)]
-     [:span.Swarmpit-tree-count n]]))
+(defn- tree-rows
+  "Collapse names sharing a prefix (text before the first `_`) under one header row.
+   A prefix needs two distinct names to become a group; anonymous volumes always group."
+  [items expanded force-open?]
+  (let [names (group-by group-key (distinct (map :volumeName items)))
+        grouped? (fn [k] (and k (or (= ::anonymous k) (< 1 (count (get names k))))))]
+    (->> items
+         (partition-by #(let [k (group-key (:volumeName %))]
+                          (if (grouped? k) k [::name (:volumeName %)])))
+         (mapcat (fn [[v :as part]]
+                   (let [k (group-key (:volumeName v))]
+                     (if (grouped? k)
+                       (let [open? (or force-open? (contains? expanded k))]
+                         (cons {:group k :count (count (get names k)) :open? open?}
+                               (when open? (map #(assoc % :child? true) (copies part expanded force-open?)))))
+                       (copies part expanded force-open?))))))))
+
+(defn- depth-class
+  [{:keys [child? copy?]}]
+  (case (+ (if child? 1 0) (if copy? 1 0))
+    0 nil
+    1 "Swarmpit-tree-depth-1"
+    2 "Swarmpit-tree-depth-2"))
+
+(defn- tag
+  ([text] (tag text nil nil))
+  ([text kind title]
+   [:span {:className (str "Swarmpit-tag" (when kind (str " Swarmpit-tag-" kind)))
+           :title     title}
+    text]))
+
+(def ^:private shadows-title
+  "A task placed on this node mounts this local copy instead of the shared volume")
+
+(defn- toggle-label
+  [k open? & content]
+  (into [:span.Swarmpit-tree-group
+         {:onClick (fn [e]
+                     (.preventDefault e)
+                     (.stopPropagation e)
+                     (toggle-group! k))}
+         (if open? (icon/expand-more) (icon/chevron-right))]
+        content))
 
 (defn- render-name
-  [{:keys [volumeName child?] :as item}]
-  (if (:group item)
-    (group-label item)
-    (let [label (if (anonymous? volumeName)
-                  (html [:span.Swarmpit-volume-anonymous volumeName])
-                  volumeName)]
-      (if child?
-        (html [:span.Swarmpit-tree-child label])
-        label))))
+  [{:keys [volumeName copies open? copy?] k :group n :count :as item}]
+  (html
+    [:span {:className (depth-class item)}
+     (cond
+       copies (toggle-label k open?
+                            [:span.Swarmpit-tree-name volumeName]
+                            [:span.Swarmpit-tree-count (count copies) " copies"])
+       k (toggle-label k open?
+                       [:span (if (= ::anonymous k) "anonymous" k)]
+                       [:span.Swarmpit-tree-count n])
+       (anonymous? volumeName) [:span.Swarmpit-volume-anonymous volumeName]
+       copy? [:span.Swarmpit-muted volumeName]
+       :else volumeName)]))
 
 (defn- render-driver
-  [{:keys [driver cluster]}]
-  (if cluster (str driver " (cluster)") driver))
+  [{:keys [driver cluster copies]}]
+  (html
+    (if copies
+      [:span (->> copies (map :driver) (distinct) (str/join ", "))]
+      [:span.Swarmpit-tag-host driver (when cluster (tag "cluster"))])))
+
+(defn- copies-nodes
+  "Summary only - the expanded rows carry the detail."
+  [copies]
+  (let [nodes (keep :nodeName copies)
+        on-nodes (if (< 2 (count nodes)) (str (count nodes) " nodes") (str/join ", " nodes))]
+    (if (some (complement :node) copies)
+      (str "shared + " on-nodes)
+      on-nodes)))
 
 (defn- render-node
-  [{:keys [group node nodeName shadows]}]
-  (cond
-    group nil
-    (not node) "all nodes"
-    shadows (html [:span.Swarmpit-volume-shadows
-                   {:title "A task placed on this node mounts this local copy instead of the shared volume"}
-                   nodeName " · shadows shared volume"])
-    :else nodeName))
+  [{:keys [group node nodeName shadows copies]}]
+  (html
+    (cond
+      copies [:span.Swarmpit-tag-host (copies-nodes copies)
+              (when (some :shadows copies) (tag "shadows" "warning" shadows-title))]
+      group nil
+      (not node) [:span.Swarmpit-muted "all nodes"]
+      :else [:span.Swarmpit-tag-host nodeName (when shadows (tag "shadows" "warning" shadows-title))])))
 
 (def render-metadata
   {:table {:summary [{:name      "Name"
@@ -107,9 +150,13 @@
                      {:name      "Node"
                       :render-fn render-node}]}
    :list  {:primary   render-name
-           :secondary (fn [item]
-                        (when-not (:group item)
-                          (str (render-driver item) " · " (if (:node item) (:nodeName item) "all nodes"))))}})
+           :secondary (fn [{:keys [group copies driver cluster node nodeName shadows]}]
+                        (cond
+                          copies (copies-nodes copies)
+                          group nil
+                          :else (str driver (when cluster " (cluster)") " · "
+                                     (if node nodeName "all nodes")
+                                     (when shadows " · shadows shared volume"))))}})
 
 (defn onclick-handler
   [item]
@@ -165,7 +212,7 @@
         {:keys [query]} (state/react state/search-cursor)
         ;; anonymous volumes are unreadable hashes; keep them out of the way
         filtered-items (->> (list-util/filter items query)
-                            (sort-by (juxt (comp anonymous? :volumeName) :volumeName)))
+                            (sort-by (juxt (comp anonymous? :volumeName) :volumeName (comp some? :node) :nodeName)))
         searching? (<= 2 (count query))]
     (progress/form
       loading?
@@ -174,7 +221,7 @@
                         filtered-items
                         (if tree?
                           (tree-rows filtered-items (or expanded #{}) searching?)
-                          filtered-items)
+                          (copies filtered-items (or expanded #{}) searching?))
                         render-metadata
                         onclick-handler
                         (toolbar-render-metadata tree?)))))
