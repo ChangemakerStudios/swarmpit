@@ -234,6 +234,70 @@
                    :type   :api
                    :body   {:error message}})))
 
+(defn- self-node-id
+  []
+  (get-in (dc/info) [:Swarm :NodeID]))
+
+(defn- node-name
+  [node-id]
+  (get-in (dc/node node-id) [:Description :Hostname]))
+
+(defn- agent-urls
+  []
+  (->> (dc/service-tasks-by-label :swarmpit.agent true)
+       (filter #(= "running" (get-in % [:Status :State])))
+       (dmi/->agent-addresses-by-nodes)))
+
+(defn- node-volumes
+  "Raw volume list of one node: swarmpit's own through its socket, any other
+   through that node's agent (nil without one)."
+  [node-id self agents]
+  (if (= node-id self)
+    (dc/volumes)
+    (some-> (get agents node-id) (sac/volumes))))
+
+(defn- on-node
+  [volume node-id node-name self]
+  (if (= "local" (:scope volume))
+    (assoc volume :node node-id :nodeName node-name :remote (not= node-id self))
+    volume))
+
+(defn volumes-on-nodes
+  "Docker only lists the daemon it is asked, so every node is asked. A local
+   volume is per node - same-named ones on two nodes are different volumes - so
+   each gets its own row; a global (plugin or cluster) volume is the same on
+   every node and listed once. A local volume named like a global one shadows
+   it on that node: a task placed there mounts the local copy instead."
+  []
+  (let [self (self-node-id)
+        agents (agent-urls)
+        rows (->> (dc/nodes)
+                  (pmap (fn [{:keys [ID] :as node}]
+                          (let [hostname (get-in node [:Description :Hostname])]
+                            (try
+                              (->> (dmi/->volumes (node-volumes ID self agents))
+                                   (map #(on-node % ID hostname self)))
+                              (catch Exception e
+                                (if (= 404 (:status (ex-data e)))
+                                  (log/debug "Agent on" hostname "predates GET /volumes; its local volumes are not listed")
+                                  (log/warn "Volumes of node" hostname "unavailable:" (.getMessage e)))
+                                [])))))
+                  (apply concat)
+                  (reduce (fn [{:keys [seen] :as acc} v]
+                            (let [k (if (:node v)
+                                      [(:volumeName v) (:node v)]
+                                      [(:volumeName v) (:driver v) (:cluster v)])]
+                              (if (seen k)
+                                acc
+                                (-> acc
+                                    (update :seen conj k)
+                                    (update :rows conj v)))))
+                          {:seen #{} :rows []})
+                  :rows)
+        shared (->> rows (remove :node) (map :volumeName) (set))]
+    (mapv #(cond-> % (and (:node %) (shared (:volumeName %))) (assoc :shadows true))
+          rows)))
+
 (defn- volumes-named
   "Docker resolves a name to the node-local volume before the cluster one, so a
    cluster volume sharing a local volume's name is only reachable via the list."
@@ -242,15 +306,30 @@
        (filter #(= volume-name (:Name %)))
        (group-by #(if (:ClusterVolume %) :cluster :local))))
 
+(defn- remote-volume
+  [volume-name node-id self]
+  (or (some->> (node-volumes node-id self (agent-urls))
+               :Volumes
+               (filter #(and (= volume-name (:Name %)) (= "local" (:Scope %))))
+               (first)
+               (dmi/->volume))
+      (volume-error 404 (str "Volume " volume-name " not found on node " node-id))))
+
 (defn volume
   ([volume-name]
-   (volume volume-name false))
+   (volume volume-name false nil))
   ([volume-name cluster?]
-   (dmi/->volume
-     (if cluster?
-       (or (first (:cluster (volumes-named volume-name)))
-           (volume-error 404 (str "Cluster volume " volume-name " not found")))
-       (dc/volume volume-name)))))
+   (volume volume-name cluster? nil))
+  ([volume-name cluster? node-id]
+   (let [self (self-node-id)
+         node-id (or node-id self)]
+     (-> (cond
+           (not= node-id self) (remote-volume volume-name node-id self)
+           cluster? (dmi/->volume
+                      (or (first (:cluster (volumes-named volume-name)))
+                          (volume-error 404 (str "Cluster volume " volume-name " not found"))))
+           :else (dmi/->volume (dc/volume volume-name)))
+         (on-node node-id (node-name node-id) self)))))
 
 (defn- cluster-volume-mounted?
   "Only `cluster` mounts use a cluster volume; a `volume` mount of the same name
@@ -267,10 +346,18 @@
    so it is forced. A forced delete also removes an unused local volume of the
    same name, so that case is refused."
   ([volume-name]
-   (delete-volume volume-name false))
+   (delete-volume volume-name false nil))
   ([volume-name cluster?]
-   (let [{:keys [local cluster]} (volumes-named volume-name)]
+   (delete-volume volume-name cluster? nil))
+  ([volume-name cluster? node-id]
+   (let [self (self-node-id)
+         {:keys [local cluster]} (volumes-named volume-name)]
      (cond
+       (and node-id (not= node-id self))
+       (volume-error 400 (str "Volume " volume-name " lives on " (node-name node-id) " and swarmpit can only "
+                              "remove volumes on its own node (" (node-name self) "). Run docker volume rm "
+                              volume-name " on " (node-name node-id) "."))
+
        (and (not cluster?) (seq local))
        (dc/delete-volume volume-name)
 

@@ -336,6 +336,10 @@
    :options    [name-value]
    :scope      string?
    :cluster    boolean?
+   (ds/opt :node)     string?
+   (ds/opt :nodeName) string?
+   (ds/opt :remote)   boolean?
+   (ds/opt :shadows)  boolean?
    :stack      string?
    :volumeName string?
    :size       number?})

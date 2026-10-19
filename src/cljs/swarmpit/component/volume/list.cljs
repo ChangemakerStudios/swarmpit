@@ -89,20 +89,36 @@
   [{:keys [driver cluster]}]
   (if cluster (str driver " (cluster)") driver))
 
+(defn- render-node
+  [{:keys [group node nodeName shadows]}]
+  (cond
+    group nil
+    (not node) "all nodes"
+    shadows (html [:span.Swarmpit-volume-shadows
+                   {:title "A task placed on this node mounts this local copy instead of the shared volume"}
+                   nodeName " · shadows shared volume"])
+    :else nodeName))
+
 (def render-metadata
   {:table {:summary [{:name      "Name"
                       :render-fn render-name}
                      {:name      "Driver"
-                      :render-fn render-driver}]}
+                      :render-fn render-driver}
+                     {:name      "Node"
+                      :render-fn render-node}]}
    :list  {:primary   render-name
-           :secondary render-driver}})
+           :secondary (fn [item]
+                        (when-not (:group item)
+                          (str (render-driver item) " · " (if (:node item) (:nodeName item) "all nodes"))))}})
 
 (defn onclick-handler
   [item]
   (when-not (:group item)
     (routes/path-for-frontend :volume-info
                               {:name (:volumeName item)}
-                              (when (:cluster item) {:cluster true}))))
+                              (cond-> nil
+                                (:cluster item) (assoc :cluster true)
+                                (:node item) (assoc :node (:node item))))))
 
 (defn- volumes-handler
   []

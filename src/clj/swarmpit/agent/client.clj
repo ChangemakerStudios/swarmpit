@@ -5,11 +5,12 @@
             [cheshire.core :refer [generate-string]]))
 
 (defn- execute
-  [{:keys [method url api options quiet-statuses]}]
+  [{:keys [method url api options quiet-statuses timeout]}]
   (execute-in-scope {:method          method
                      :url             (str url api)
                      :options         options
                      :scope           "Agent"
+                     :timeout         timeout
                      :error-handler   #(or (:detail %) %)
                      :quiet-statuses  quiet-statuses}))
 
@@ -18,6 +19,17 @@
   (-> (execute {:method :GET
                 :api    "/"
                 :url    agent-url})
+      :body))
+
+(defn volumes
+  "The node's volume list in the engine's /volumes shape (agent 2.3.2+). The
+   agent itself gives up after 10s on a wedged volume plugin."
+  [agent-url]
+  (-> (execute {:method         :GET
+                :api            "/volumes"
+                :url            agent-url
+                :timeout        12000
+                :quiet-statuses #{404}})
       :body))
 
 (defn logs
