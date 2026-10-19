@@ -1324,11 +1324,52 @@ html.dark .Swarmpit-login-instance {
     color: rgba(0, 0, 0, 0.54);
     font-weight: 400;
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
 
-.Swarmpit-tree-child {
+.Swarmpit-tag-host {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.Swarmpit-tree-name {
+    font-weight: 400;
+}
+
+.Swarmpit-tree-depth-1 {
     display: block;
     padding-left: 26px;
+}
+
+.Swarmpit-tree-depth-2 {
+    display: block;
+    padding-left: 52px;
+}
+
+.Swarmpit-muted {
+    color: rgba(0, 0, 0, 0.54);
+}
+
+.Swarmpit-tag {
+    display: inline-block;
+    padding: 0 6px;
+    border-radius: 4px;
+    background-color: rgba(0, 0, 0, 0.06);
+    color: rgba(0, 0, 0, 0.6);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 18px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    vertical-align: 1px;
+    white-space: nowrap;
+}
+
+.Swarmpit-tag-warning {
+    background-color: #fff4e5;
+    color: #8a4b00;
 }
 
 .Swarmpit-volume-anonymous {
@@ -1338,7 +1379,7 @@ html.dark .Swarmpit-login-instance {
 }
 
 .Swarmpit-volume-shadows {
-    color: #c62828;
+    color: #8a4b00;
 }
 
 .Swarmpit-form-card-note {
@@ -2266,8 +2307,25 @@ html.dark .MuiFormHelperText-root {
 }
 
 html.dark .Swarmpit-maintenance-warning,
-html.dark .Swarmpit-maintenance-danger,
-html.dark .Swarmpit-volume-shadows {
+html.dark .Swarmpit-maintenance-danger {
     color: #ef9a9a;
     border-color: #ef9a9a;
+}
+
+html.dark .Swarmpit-volume-shadows {
+    color: #ffb74d;
+}
+
+html.dark .Swarmpit-muted {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+html.dark .Swarmpit-tag {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.7);
+}
+
+html.dark .Swarmpit-tag-warning {
+    background-color: rgba(255, 167, 38, 0.16);
+    color: #ffb74d;
 }
