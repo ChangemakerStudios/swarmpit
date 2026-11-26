@@ -59,17 +59,30 @@
              #?@(:clj [:handler handler/slt]))}]
    ["/password"
     {:name :password
+     :swagger {:tags ["account"]}
      :post (array-map
-             :no-doc true
-             :parameters {:body any?}
+             :summary "Change own password"
+             :parameters {:header {:authorization string?}
+                          :body   spec/password-change}
+             :responses {200 {:body        nil
+                              :description "Success"}
+                         403 {:body        {:error string?}
+                              :description "Invalid old password provided"}}
              #?@(:clj [:handler handler/password]))}]
    ["/api-token"
-    {:name   :api-token
+    {:name    :api-token
+     :swagger {:tags ["account"]}
      :post   (array-map
-               :no-doc true
+               :summary "Generate own API token, replacing any existing one"
+               :parameters {:header {:authorization string?}}
+               :responses {200 {:body        spec/api-token
+                                :description "Success"}}
                #?@(:clj [:handler handler/api-token-generate]))
      :delete (array-map
-               :no-doc true
+               :summary "Revoke own API token"
+               :parameters {:header {:authorization string?}}
+               :responses {200 {:body        nil
+                                :description "Success"}}
                #?@(:clj [:handler handler/api-token-remove]))}]
    ["/initialize"
     {:name :initialize
@@ -153,7 +166,8 @@
       :post    (array-map
                  :summary "Create stack"
                  :parameters {:header {:authorization string?}
-                              :body   spec/stack-compose}
+                              :body   spec/stack-compose
+                              :query  {(ds/opt :comment) string?}}
                  :responses {201 {:body        nil
                                   :description "Success"}}
                  #?@(:clj [:handler handler/stack-create]))}]
@@ -164,7 +178,8 @@
                  :summary "Edit stack"
                  :parameters {:header {:authorization string?}
                               :path   {:name string?}
-                              :body   spec/stack-compose}
+                              :body   spec/stack-compose
+                              :query  {(ds/opt :comment) string?}}
                  :responses {200 {:body        nil
                                   :description "Success"}}
                  #?@(:clj [:handler handler/stack-update]))
@@ -200,6 +215,16 @@
                  :responses {200 {:body        nil
                                   :description "Success"}}
                  #?@(:clj [:handler handler/stack-file-delete]))}]
+    ["/stacks/:name/history"
+     {:name    :stack-history
+      :swagger {:tags ["stack"]}
+      :get     (array-map
+                 :summary "Stack compose history, oldest first"
+                 :parameters {:header {:authorization string?}
+                              :path   {:name string?}}
+                 :responses {200 {:body        [spec/stack-history-entry]
+                                  :description "Success"}}
+                 #?@(:clj [:handler handler/stack-history]))}]
     ["/stacks/:name/compose"
      {:name    :stack-compose
       :swagger {:tags ["stack"]}
@@ -276,7 +301,8 @@
       :post    (array-map
                  :summary "Redeploy stack"
                  :parameters {:header {:authorization string?}
-                              :path   {:name string?}}
+                              :path   {:name string?}
+                              :query  {(ds/opt :comment) string?}}
                  :responses {200 {:body        nil
                                   :description "Success"}}
                  #?@(:clj [:handler handler/stack-redeploy]))}]
@@ -286,7 +312,8 @@
       :post    (array-map
                  :summary "Rollback stack"
                  :parameters {:header {:authorization string?}
-                              :path   {:name string?}}
+                              :path   {:name string?}
+                              :query  {(ds/opt :comment) string?}}
                  :responses {200 {:body        nil
                                   :description "Success"}}
                  #?@(:clj [:handler handler/stack-rollback]))}]
@@ -707,7 +734,8 @@
                  :summary "Edit service"
                  :parameters {:header {:authorization string?}
                               :path   {:id string?}
-                              :body   spec/service-update}
+                              :body   spec/service-update
+                              :query  {(ds/opt :comment) string?}}
                  :responses {200 {:body        nil
                                   :description "Success"}}
                  #?@(:clj [:handler handler/service-update]))
@@ -767,7 +795,8 @@
                  :description "Redeploy service with newest image version or different tag if specified"
                  :parameters {:header {:authorization string?}
                               :path   {:id string?}
-                              :query  {(ds/opt :tag) string?}}
+                              :query  {(ds/opt :comment) string?
+                                       (ds/opt :tag) string?}}
                  :responses {202 {:body        nil
                                   :description "Success"}}
                  #?@(:clj [:handler handler/service-redeploy]))}]
@@ -777,7 +806,8 @@
       :post    (array-map
                  :summary "Rollback service"
                  :parameters {:header {:authorization string?}
-                              :path   {:id string?}}
+                              :path   {:id string?}
+                              :query  {(ds/opt :comment) string?}}
                  :responses {202 {:body        nil
                                   :description "Success"}}
                  #?@(:clj [:handler handler/service-rollback]))}]

@@ -53,14 +53,32 @@
 (defn influx-configured? []
   (some? (config :influxdb-url)))
 
+(defn cached-active-hosts
+  "Fresh cached stats of currently active nodes"
+  []
+  (let [active (active-hosts)]
+    (filter #(contains? active (:id %)) (fresh-stats))))
+
+(defn not-ready-reason
+  "Failing readiness precondition, nil when statistics can be served"
+  []
+  (cond
+    (empty? @cache) :no-agent-data
+    (empty? (active-hosts)) :no-active-nodes
+    (empty? (cached-active-hosts)) :stale-agent-data))
+
 (defn ready? []
-  (some? (and (not-empty @cache)
-              (not-empty (active-hosts)))))
+  (nil? (not-ready-reason)))
 
 (defn store-to-cache
   "Store stats in local cache"
-  [stats]
-  (swap! cache assoc (:id stats) (assoc stats :receivedAt (System/currentTimeMillis))))
+  [{:keys [id] :as stats}]
+  (if id
+    (do
+      (when-not (cache/has? @cache id)
+        (log/info "Receiving stats from node" id))
+      (swap! cache assoc id (assoc stats :receivedAt (System/currentTimeMillis))))
+    (log/warn "Ignoring stats push without node id")))
 
 (defn store-to-db
   "Store stats in influxDB as timeseries"
@@ -126,10 +144,9 @@
 (defn cluster
   "Get latest cluster statistics"
   []
-  (let [active-hosts (active-hosts)
-        hosts (filter #(contains? active-hosts (:id %)) (fresh-stats))
+  (let [hosts (cached-active-hosts)
         sum-fn (fn [ks] (reduce + (map #(get-in % ks) hosts)))
-        mean-fn (fn [ks] (if (seq hosts) (/ (sum-fn ks) (count hosts)) 0))]
+        mean-fn (fn [ks] (if (empty? hosts) 0 (/ (sum-fn ks) (count hosts))))]
     {:resources (hosts-resources)
      :cpu       {:usage (mean-fn [:cpu :usedPercentage])
                  :cores (cluster-cpus)}

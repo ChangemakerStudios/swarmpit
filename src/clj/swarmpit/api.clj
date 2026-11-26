@@ -748,8 +748,8 @@
 
 (defn delete-stackfile
   [stack-name]
-  (-> (cc/stackfile stack-name)
-      (cc/delete-stackfile)))
+  (when-let [stackfile (cc/stackfile stack-name)]
+    (cc/delete-stackfile stackfile)))
 
 (defn- stackfile-json
   [stackfile-spec]
@@ -820,24 +820,28 @@
 (defn supported-registry-type? [type]
   (contains? supported-registry-types type))
 
+(defn- find-registry-by-url
+  "Return registry account matching given url or nil if none is linked"
+  [owner registry-address]
+  (when-let [registry (->> (supported-registries owner)
+                           (filter #(.contains (:url %) registry-address))
+                           (first))]
+    (case (:type registry)
+      "ecr" (registry-ecr->v2 registry)
+      "acr" (registry-acr->v2 registry)
+      "gitlab" (registry-gitlab->v2 registry)
+      "ghcr" (registry-ghcr->v2 registry)
+      registry)))
+
 (defn- registry-by-url
   "Return registry account matching given url"
   [owner registry-address]
-  (let [registry (->> (supported-registries owner)
-                      (filter #(.contains (:url %) registry-address))
-                      (first))]
-    (if (nil? registry)
+  (or (find-registry-by-url owner registry-address)
       (throw
         (ex-info "Registry error: No matching registry linked with Swarmpit"
                  {:status 401
                   :type   :api
-                  :body   {:error (str "No matching registry ( " registry-address " ) linked with Swarmpit")}}))
-      (case (:type registry)
-        "ecr" (registry-ecr->v2 registry)
-        "acr" (registry-acr->v2 registry)
-        "gitlab" (registry-gitlab->v2 registry)
-        "ghcr" (registry-ghcr->v2 registry)
-        registry))))
+                  :body   {:error (str "No matching registry ( " registry-address " ) linked with Swarmpit")}}))))
 
 (defn- registries-by-stackfile
   "Return registry accounts for given stackfile spec"
@@ -921,12 +925,20 @@
 
 ;;; Repository Digest API
 
+(defn- anonymous-repository-digest
+  [registry-address repository-name repository-tag]
+  (try
+    (rc/digest {:url (str "https://" registry-address)} repository-name repository-tag)
+    (catch Exception _ nil)))
+
 (defn- registry-repository-digest
   [owner repository-name repository-tag]
   (let [registry-address (du/distribution-id repository-name)
         repository-name (du/registry-repository repository-name registry-address)]
-    (-> (registry-by-url owner registry-address)
-        (rc/digest repository-name repository-tag))))
+    (if-let [registry (find-registry-by-url owner registry-address)]
+      (rc/digest registry repository-name repository-tag)
+      ;; unlinked registry (e.g. public ghcr.io), try an anonymous pull token like docker does
+      (anonymous-repository-digest registry-address repository-name repository-tag))))
 
 (defn- dockerhub-repository-digest
   [owner repository-name repository-tag]
@@ -1167,7 +1179,7 @@
   [service]
   (assoc-in service [:secrets] (dmo/->service-secrets service (secrets))))
 
-(defn- standardize-repository-tag
+(defn standardize-repository-tag
   [repository-tag]
   (if (str/blank? repository-tag)
     "latest"
@@ -1192,7 +1204,7 @@
         auth-entity (cond
                       (du/library? repository-name) nil
                       (du/dockerhub? repository-name) (dockerhub-by-namespace owner distribution-id)
-                      :else (registry-by-url owner distribution-id))
+                      :else (find-registry-by-url owner distribution-id))
         auth-config (dmo/->auth-config auth-entity)]
     ;; The swarm rejects a task asynchronously, long after this update returns
     ;; 200, so a credential that never reaches the node is otherwise invisible
@@ -1250,8 +1262,13 @@
          ;; to re-resolve, and treating it as :latest can jump a major version
          pinned? (and (nil? new-tag) (str/blank? repository-tag) (some? current-digest))
          effective-tag (standardize-repository-tag (or new-tag repository-tag))
-         image-digest (when-not pinned?
-                        (or digest (repository-digest owner repository-name effective-tag)))
+         resolved-digest (when-not pinned?
+                           (or digest (repository-digest owner repository-name effective-tag)))
+         ;; an unresolvable digest on an unchanged tag keeps the current pin
+         ;; rather than dropping it and letting the node re-resolve the tag
+         image-digest (if (str/blank? resolved-digest)
+                        (when (= effective-tag (standardize-repository-tag repository-tag)) current-digest)
+                        resolved-digest)
          image (cond
                  pinned? (str repository-name "@" current-digest)
                  (str/blank? image-digest) (str repository-name ":" effective-tag)
@@ -1262,7 +1279,7 @@
        (get-in service-origin [:Version :Index])
        (-> service-origin
            :Spec
-           (update-in [:TaskTemplate :ForceUpdate] inc)
+           (update-in [:TaskTemplate :ForceUpdate] (fnil inc 0))
            (assoc-in [:TaskTemplate :ContainerSpec :Image] image)))
      ;; only a tag change alters the stackfile; plain/auto redeploys just move the digest
      (when (and (not pinned?)
@@ -1503,6 +1520,69 @@
            (->compose)
            (->yaml)))
 
+(defn- stack-timestamp
+  [services k pick]
+  (->> services
+       (keep k)
+       (sort)
+       (pick)))
+
+(defn stack-history
+  [stack-name]
+  (vec (:history (cc/stackfile stack-name))))
+
+(def ^:private max-comment-length 120)
+
+(defn- sanitize-comment
+  "Comments render in a single dropdown row, so keep them short and one-line."
+  [comment]
+  (when-let [c (some-> comment str/trim (str/replace #"\s+" " ") not-empty)]
+    (if (> (count c) max-comment-length)
+      (str (subs c 0 (dec max-comment-length)) "…")
+      c)))
+
+(defn append-history!
+  "Append an entry describing what just changed in the given stack. Skips when
+   the stack has no stackfile or the compose is unchanged since the last entry."
+  [stack-name {:keys [by trigger comment]}]
+  (when stack-name
+    (try
+      (when-let [stackfile-origin (cc/stackfile stack-name)]
+        (when-let [compose (stack-compose stack-name)]
+          (let [comment (sanitize-comment comment)
+                entry (cond-> {:at      (str (java.time.Instant/now))
+                               :by      (or by "system")
+                               :trigger trigger
+                               :spec    {:compose compose}}
+                        comment (assoc :comment comment))]
+            (loop [stackfile stackfile-origin, attempt 0]
+              (when stackfile
+                (let [history (vec (:history stackfile))]
+                  (when (not= compose (get-in (peek history) [:spec :compose]))
+                    (let [result (try
+                                   (cc/update-stackfile stackfile {:history (conj history entry)})
+                                   (catch Exception e
+                                     (if (and (= 409 (:status (ex-data e))) (< attempt 2))
+                                       ::retry
+                                       (throw e))))]
+                      (when (= ::retry result)
+                        (recur (cc/stackfile stack-name) (inc attempt)))))))))))
+      (catch Exception e
+        (log/warn "Failed to append stack history for" stack-name ":" (.getMessage e))))))
+
+(defn service-stack-name
+  "Stack name from a live service spec, or nil when the service isn't in a stack."
+  [service-id]
+  (try
+    (get-in (dc/service service-id) [:Spec :Labels :com.docker.stack.namespace])
+    (catch Exception _ nil)))
+
+(defn service-name-of
+  [service-id]
+  (try
+    (get-in (dc/service service-id) [:Spec :Name])
+    (catch Exception _ nil)))
+
 (defn deployed-stacks
   []
   (->> (dissoc (group-by :stack (services)) nil)
@@ -1521,6 +1601,8 @@
                   (when (not-empty stack-services)
                     {:stackName stack-name
                      :state     "deployed"
+                     :createdAt (stack-timestamp stack-services :createdAt first)
+                     :updatedAt (stack-timestamp stack-services :updatedAt last)
                      :services  stack-services
                      :networks  (distinct-resources stack-networks)
                      :volumes   (distinct-resources stack-volumes)
@@ -1599,3 +1681,12 @@
 (defn delete-stack
   [stack-name]
   (dcli/stack-remove stack-name))
+
+(defn deactivate-stack
+  "Remove the stack from docker, keeping a stackfile so it stays re-activatable."
+  [stack-name]
+  (when (nil? (stackfile stack-name))
+    (when-let [compose (stack-compose stack-name)]
+      (create-stackfile {:name stack-name
+                         :spec {:compose compose}})))
+  (delete-stack stack-name))
