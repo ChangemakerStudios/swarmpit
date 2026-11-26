@@ -245,11 +245,21 @@
     (->> (api/create-service owner body)
          (resp-created))))
 
+(defn- record-service-history!
+  [service-id owner kind comment]
+  (api/append-history!
+    (api/service-stack-name service-id)
+    {:by      owner
+     :comment comment
+     :trigger {:kind    kind
+               :service (api/service-name-of service-id)}}))
+
 (defn service-update
-  [{{:keys [body path]} :parameters
-    {:keys [usr]}       :identity}]
+  [{{:keys [body path query]} :parameters
+    {:keys [usr]}             :identity}]
   (let [owner (:username usr)]
     (api/update-service owner (:id path) body)
+    (record-service-history! (:id path) owner "service-update" (:comment query))
     (resp-ok)))
 
 (defn service-redeploy
@@ -257,13 +267,15 @@
     {:keys [usr]}        :identity}]
   (let [owner (:username usr)]
     (api/redeploy-service owner (:id path) (:tag query))
+    (record-service-history! (:id path) owner "service-redeploy" (:comment query))
     (resp-accepted)))
 
 (defn service-rollback
-  [{{:keys [path]} :parameters
-    {:keys [usr]}  :identity}]
+  [{{:keys [path query]} :parameters
+    {:keys [usr]}        :identity}]
   (let [owner (:username usr)]
     (api/rollback-service owner (:id path))
+    (record-service-history! (:id path) owner "service-rollback" (:comment query))
     (resp-accepted)))
 
 (defn service-stop
@@ -460,12 +472,17 @@
 
 ;; Statistics
 
+(def ^:private stats-not-ready
+  {:no-active-nodes  "Statistics not ready: no active swarm nodes"
+   :no-agent-data    "Statistics not ready: no stats received from swarmpit agent yet, check that the agent is running on your nodes and can POST to /events"
+   :stale-agent-data "Statistics not ready: no recent stats from any active swarm node"})
+
 (defn stats
   [_]
-  (if (stats/ready?)
+  (if-let [reason (stats/not-ready-reason)]
+    (resp-error 400 (get stats-not-ready reason "Statistics not ready"))
     (->> (stats/cluster)
-         (resp-ok))
-    (resp-error 400 "Statistics not ready")))
+         (resp-ok))))
 
 ;; Placement handler
 
@@ -769,36 +786,40 @@
        (resp-ok)))
 
 (defn stack-create
-  [{{:keys [body]} :parameters
-    {:keys [usr]}  :identity}]
+  [{{:keys [body query]} :parameters
+    {:keys [usr]}        :identity}]
   (let [owner (:username usr)]
     (if (some? (api/stack (:name body)))
       (resp-error 400 "Stack already exist.")
       (do (api/create-stack owner body)
+          (api/append-history! (:name body) {:by owner :comment (:comment query) :trigger {:kind "stack-create"}})
           (resp-created)))))
 
 (defn stack-update
-  [{{:keys [body path]} :parameters
-    {:keys [usr]}       :identity}]
+  [{{:keys [body path query]} :parameters
+    {:keys [usr]}             :identity}]
   (let [owner (:username usr)]
     (if (not= (:name path)
               (:name body))
       (resp-error 400 "Stack invalid.")
       (do (api/update-stack owner body)
+          (api/append-history! (:name body) {:by owner :comment (:comment query) :trigger {:kind "stack-update"}})
           (resp-ok)))))
 
 (defn stack-redeploy
-  [{{:keys [path]} :parameters
-    {:keys [usr]}  :identity}]
+  [{{:keys [path query]} :parameters
+    {:keys [usr]}        :identity}]
   (let [owner (:username usr)]
     (api/redeploy-stack owner (:name path))
+    (api/append-history! (:name path) {:by owner :comment (:comment query) :trigger {:kind "stack-redeploy"}})
     (resp-ok)))
 
 (defn stack-rollback
-  [{{:keys [path]} :parameters
-    {:keys [usr]}  :identity}]
+  [{{:keys [path query]} :parameters
+    {:keys [usr]}        :identity}]
   (let [owner (:username usr)]
     (api/rollback-stack owner (:name path))
+    (api/append-history! (:name path) {:by owner :comment (:comment query) :trigger {:kind "stack-rollback"}})
     (resp-ok)))
 
 (defn stack-delete
@@ -812,7 +833,7 @@
 
 (defn stack-deactivate
   [{{:keys [path]} :parameters}]
-  (let [{:keys [result]} (api/delete-stack (:name path))]
+  (let [{:keys [result]} (api/deactivate-stack (:name path))]
     (if (nil? (api/stack (:name path)))
       (resp-ok)
       (resp-error 400 result))))
@@ -821,8 +842,14 @@
   [{{:keys [path]} :parameters}]
   (let [response (api/stackfile (:name path))]
     (if (some? response)
-      (resp-ok response)
+      ;; history is served by /stacks/:name/history — it would otherwise put a
+      ;; copy of every past compose, secrets included, in every stackfile read
+      (resp-ok (dissoc response :history))
       (resp-error 400 "Stackfile not found"))))
+
+(defn stack-history
+  [{{:keys [path]} :parameters}]
+  (resp-ok (api/stack-history (:name path))))
 
 (defn stack-file-create
   [{{:keys [body path]} :parameters}]
