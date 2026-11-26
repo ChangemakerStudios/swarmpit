@@ -91,6 +91,11 @@ networks:
       (is (= "2026-01-01T10:00:00Z"
              (stack-timestamp (conj services {:serviceName "no-times"}) :createdAt first))))
 
+    (testing "fractional seconds of different lengths order chronologically"
+      (let [svcs [{:updatedAt "2026-01-01T10:00:00.1Z"} {:updatedAt "2026-01-01T10:00:00.12Z"}]]
+        (is (= "2026-01-01T10:00:00.12Z" (stack-timestamp svcs :updatedAt last)))
+        (is (= "2026-01-01T10:00:00.1Z" (stack-timestamp svcs :updatedAt first)))))
+
     (testing "nil when nothing carries a timestamp"
       (is (nil? (stack-timestamp [{:serviceName "a"}] :createdAt first)))
       (is (nil? (stack-timestamp [] :updatedAt last))))))
@@ -98,7 +103,7 @@ networks:
 (defn- redeployed-image
   "Image that redeploy-service would write, given the digest the registry
    resolves and the digest currently pinned on the service."
-  [{:keys [current-digest resolved-digest new-tag tag]
+  [{:keys [current-digest resolved-digest new-tag tag lookup]
     :or   {tag "1.2"}}]
   (let [image (atom nil)
         spec {:Name         "app"
@@ -108,7 +113,7 @@ networks:
                                                          (when current-digest (str "@" current-digest)))}}}]
     (with-redefs [dc/service          (constantly {:Spec spec :Version {:Index 7}})
                   dc/update-service   (fn [_ _ _ s] (reset! image (get-in s [:TaskTemplate :ContainerSpec :Image])))
-                  api/repository-digest (constantly resolved-digest)
+                  api/repository-digest (or lookup (constantly resolved-digest))
                   api/sync-stackfile-service (constantly nil)]
       (api/redeploy-service nil "svc1" new-tag nil))
     @image))
@@ -127,6 +132,14 @@ networks:
   (testing "a failed lookup while retagging must not carry the old tag's digest over"
     (is (= "nginx:2.0"
            (redeployed-image {:current-digest "sha256:aaa" :resolved-digest nil :new-tag "2.0"}))))
+
+  (testing "a registry error on an unchanged tag keeps the existing pin"
+    (is (= "nginx:1.2@sha256:aaa"
+           (redeployed-image {:current-digest "sha256:aaa" :lookup (fn [& _] (throw (ex-info "Registry error" {:status 503})))}))))
+
+  (testing "a registry error while retagging still fails the redeploy"
+    (is (thrown? Exception
+                 (redeployed-image {:current-digest "sha256:aaa" :new-tag "2.0" :lookup (fn [& _] (throw (ex-info "Registry error" {:status 503})))}))))
 
   (testing "unpinned service with no resolvable digest stays unpinned"
     (is (= "nginx:1.2"
@@ -224,7 +237,9 @@ networks:
       (with-redefs [cc/stackfile (constantly {:name "web" :spec {:compose "existing"}})
                     api/stack-compose (fn [_] (throw (ex-info "must not be called" {})))
                     api/create-stackfile #(swap! created conj %)
-                    dcli/stack-remove (constantly {:result "removed"})]
+                    dcli/stack-remove (constantly {:result "removed"})
+                    api/secrets (constantly [])
+                    api/configs (constantly [])]
         (is (= {:result "removed"} (api/deactivate-stack "web"))))
       (is (empty? @created))))
 
@@ -233,7 +248,9 @@ networks:
       (with-redefs [cc/stackfile (constantly nil)
                     api/stack-compose (fn [_] "services:\n  web: {}\n")
                     api/create-stackfile #(swap! events conj [:created %])
-                    dcli/stack-remove (fn [n] (swap! events conj [:removed n]) {:result "removed"})]
+                    dcli/stack-remove (fn [n] (swap! events conj [:removed n]) {:result "removed"})
+                    api/secrets (constantly [])
+                    api/configs (constantly [])]
         (api/deactivate-stack "web"))
       (is (= [[:created {:name "web" :spec {:compose "services:\n  web: {}\n"}}]
               [:removed "web"]]
@@ -245,9 +262,26 @@ networks:
       (with-redefs [cc/stackfile (constantly nil)
                     api/stack-compose (constantly nil)
                     api/create-stackfile (fn [_] (throw (ex-info "must not be called" {})))
-                    dcli/stack-remove (fn [n] (reset! removed n) {:result "removed"})]
+                    dcli/stack-remove (fn [n] (reset! removed n) {:result "removed"})
+                    api/secrets (constantly [])
+                    api/configs (constantly [])]
         (api/deactivate-stack "web"))
-      (is (= "web" @removed)))))
+      (is (= "web" @removed))))
+
+  (testing "an unsaved stack that owns secrets/configs is not removed, they could not be recreated"
+    (let [removed (atom nil)]
+      (with-redefs [cc/stackfile (constantly nil)
+                    api/stack-compose (constantly "services:
+  web: {}
+")
+                    api/create-stackfile (fn [_] (throw (ex-info "must not be called" {})))
+                    api/secrets (fn [label] (when (= label "com.docker.stack.namespace=web") [{:secretName "web_db"}]))
+                    api/configs (constantly [{:configName "web_settings"}])
+                    dcli/stack-remove (fn [n] (reset! removed n) {:result "removed"})]
+        (let [e (try (api/deactivate-stack "web") nil (catch Exception e e))]
+          (is (= 400 (:status (ex-data e))))
+          (is (re-find #"web_db, web_settings" (get-in (ex-data e) [:body :error])))))
+      (is (nil? @removed)))))
 
 (deftest deployed-stacks-timestamps-test
   (let [svc (fn [stack name created updated]

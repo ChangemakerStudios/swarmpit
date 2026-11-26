@@ -88,3 +88,14 @@
             "services:\n  web: {}"]]]
     (testing label
       (is (= expected (restore current change))))))
+
+
+(deftest oversized-diffs-fall-back-to-a-single-replacement
+  (testing "edits at both ends of a large compose don't build an unbounded table"
+    (let [base (vec (map str (range 3000)))
+          cur (-> base (assoc 0 "first") (assoc 2999 "last"))
+          {:keys [added chunks]} (diff/changes base cur)]
+      (is (= (set (range 3000)) added))
+      (is (= 1 (count chunks)))
+      (is (= base (:lines (first chunks))))
+      (is (= {:b-start 0 :b-end 3000} (select-keys (first chunks) [:b-start :b-end]))))))

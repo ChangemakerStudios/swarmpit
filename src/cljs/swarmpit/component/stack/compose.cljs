@@ -281,6 +281,9 @@
        (.on editor "change"
             (fn [cm]
               (aset cm "__diffLast" nil)
+              ;; entries recorded before this edit point at stale coordinates;
+              ;; drop them now so a restore can't re-apply during the debounce
+              (aset cm "__diffDeletions" (array))
               (state/update-value [:spec :compose] (-> cm .getValue) state/form-value-cursor)
               (refresh-diff!)))
        (refresh-diff!)

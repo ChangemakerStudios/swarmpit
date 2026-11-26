@@ -28,7 +28,9 @@
   (or (get headers "x-swarmpit-event-token")
       ;; upstream swarmpit's name for the same header
       (get headers "x-swarmpit-agent-token")
-      (let [params (codec/form-decode (or query-string ""))]
+      ;; a malformed escape (token=%ZZ) must read as a bad token, not a 500
+      (let [params (try (codec/form-decode (or query-string ""))
+                        (catch Exception _ nil))]
         (when (map? params) (get params "token")))))
 
 (defn- event-push-access

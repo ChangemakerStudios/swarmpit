@@ -64,7 +64,8 @@
 (defn- with-token
   [token f]
   (try
-    (cfg/update! (if token {:agent-token token} {}))
+    ;; pin both names so a SWARMPIT_EVENT_TOKEN in the environment can't leak in
+    (cfg/update! {:event-token nil :agent-token token})
     (f)
     (finally (cfg/update! {}))))
 
@@ -108,7 +109,8 @@
         (is (not (accepted? {:query-string "token=nope"}))))
 
       (testing "a malformed query string is rejected, not a crash"
-        (is (not (accepted? {:query-string "%%%"}))))
+        (is (not (accepted? {:query-string "%%%"})))
+        (is (not (accepted? {:query-string "token=%ZZ"}))))
 
       (testing "rejection is a tagged 401"
         (let [{:keys [status headers body]} (push-event {})]

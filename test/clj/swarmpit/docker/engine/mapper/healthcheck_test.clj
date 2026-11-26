@@ -99,3 +99,12 @@
     (testing "nil healthcheck stays nil both ways"
       (is (nil? (outbound/->service-healthcheck nil)))
       (is (nil? (inbound/->service-healthcheck nil))))))
+
+
+(deftest fractional-durations-are-integral-nanoseconds
+  (testing "docker rejects a JSON float for its int64 duration fields"
+    (is (= 500000000 (swarmpit.utils/->nano 0.5)))
+    (is (= 1500000000 (swarmpit.utils/->nano 1.5)))
+    (is (integer? (swarmpit.utils/->nano 0.1)))
+    (is (= 30000000000 (swarmpit.utils/->nano 30)))
+    (is (nil? (swarmpit.utils/->nano nil)))))

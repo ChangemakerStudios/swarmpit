@@ -1262,12 +1262,24 @@
          ;; to re-resolve, and treating it as :latest can jump a major version
          pinned? (and (nil? new-tag) (str/blank? repository-tag) (some? current-digest))
          effective-tag (standardize-repository-tag (or new-tag repository-tag))
+         same-tag? (= effective-tag (standardize-repository-tag repository-tag))
          resolved-digest (when-not pinned?
-                           (or digest (repository-digest owner repository-name effective-tag)))
+                           (or digest
+                               (try
+                                 (repository-digest owner repository-name effective-tag)
+                                 (catch Exception e
+                                   ;; registry down / 4xx: only safe to swallow when
+                                   ;; we have a current pin for the same tag to keep
+                                   (if (and same-tag? (some? current-digest))
+                                     (do (log/warn "Redeploy of" repository-name
+                                                   "keeps current digest, registry lookup failed:"
+                                                   (.getMessage e))
+                                         nil)
+                                     (throw e))))))
          ;; an unresolvable digest on an unchanged tag keeps the current pin
          ;; rather than dropping it and letting the node re-resolve the tag
          image-digest (if (str/blank? resolved-digest)
-                        (when (= effective-tag (standardize-repository-tag repository-tag)) current-digest)
+                        (when same-tag? current-digest)
                         resolved-digest)
          image (cond
                  pinned? (str repository-name "@" current-digest)
@@ -1521,10 +1533,12 @@
            (->yaml)))
 
 (defn- stack-timestamp
+  "Docker trims trailing zeros from fractional seconds, so `.12Z` sorts before
+   `.1Z` as a string; order by the parsed instant, return the original string."
   [services k pick]
   (->> services
        (keep k)
-       (sort)
+       (sort-by #(try (java.time.Instant/parse %) (catch Exception _ java.time.Instant/EPOCH)))
        (pick)))
 
 (defn stack-history
@@ -1557,8 +1571,14 @@
                         comment (assoc :comment comment))]
             (loop [stackfile stackfile-origin, attempt 0]
               (when stackfile
-                (let [history (vec (:history stackfile))]
-                  (when (not= compose (get-in (peek history) [:spec :compose]))
+                (let [history (vec (:history stackfile))
+                      previous (peek history)
+                      ;; tagged images render without their digest, so a digest-only
+                      ;; auto-redeploy leaves the compose text unchanged
+                      digest (:digest trigger)]
+                  (when (or (not= compose (get-in previous [:spec :compose]))
+                            (and (some? digest)
+                                 (not= digest (get-in previous [:trigger :digest]))))
                     (let [result (try
                                    (cc/update-stackfile stackfile {:history (conj history entry)})
                                    (catch Exception e
@@ -1651,6 +1671,24 @@
       (cc/update-stackfile stackfile-origin stackfile)
       (cc/create-stackfile stackfile))))
 
+(defn- write-deployed-spec!
+  "Record a spec docker has already accepted. The deploy takes a while and the
+   stackfile can be written meanwhile (history appends, service syncs), so
+   write against the current revision and retry a 409 rather than leave docker
+   and the stored stackfile disagreeing."
+  [stack-name delta]
+  (loop [attempt 0]
+    (let [current (cc/stackfile stack-name)
+          result (try
+                   (cc/update-stackfile current delta)
+                   (catch Exception e
+                     (if (and (= 409 (:status (ex-data e))) (< attempt 3))
+                       ::retry
+                       (throw e))))]
+      (if (= ::retry result)
+        (recur (inc attempt))
+        result))))
+
 (defn update-stack
   "Update application stack and stackfile accordingly"
   [owner {:keys [name spec] :as stackfile}]
@@ -1658,8 +1696,8 @@
     (stack-login owner spec)
     (dcli/stack-deploy name (:compose spec) (deploy-opts stackfile))
     (if (some? stackfile-origin)
-      (cc/update-stackfile stackfile-origin {:spec         spec
-                                             :previousSpec (:spec stackfile-origin)})
+      (write-deployed-spec! name {:spec         spec
+                                  :previousSpec (:spec stackfile-origin)})
       (cc/create-stackfile stackfile))))
 
 (defn redeploy-stack
@@ -1675,8 +1713,8 @@
   (let [{:keys [name spec previousSpec] :as stackfile-origin} (cc/stackfile name)]
     (stack-login owner previousSpec)
     (dcli/stack-deploy name (:compose previousSpec))
-    (cc/update-stackfile stackfile-origin {:spec         previousSpec
-                                           :previousSpec spec})))
+    (write-deployed-spec! name {:spec         previousSpec
+                                :previousSpec spec})))
 
 (defn delete-stack
   [stack-name]
@@ -1686,6 +1724,19 @@
   "Remove the stack from docker, keeping a stackfile so it stays re-activatable."
   [stack-name]
   (when (nil? (stackfile stack-name))
+    ;; the snapshot can only reference secrets/configs as external, but
+    ;; `docker stack rm` deletes the ones the stack itself created, so
+    ;; reactivating would point at resources that no longer exist
+    (let [owned (concat (map :secretName (secrets (stack-label stack-name)))
+                        (map :configName (configs (stack-label stack-name))))]
+      (when (seq owned)
+        (throw (ex-info "Stack owns secrets/configs that deactivation would delete"
+                        {:status 400
+                         :type   :api
+                         :body   {:error (str "Stack owns " (str/join ", " owned)
+                                              ", which docker stack rm would delete and the "
+                                              "deactivated snapshot cannot recreate. Save the "
+                                              "stack's compose in Swarmpit first.")}}))))
     (when-let [compose (stack-compose stack-name)]
       (create-stackfile {:name stack-name
                          :spec {:compose compose}})))

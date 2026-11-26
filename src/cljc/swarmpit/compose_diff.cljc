@@ -1,7 +1,18 @@
 (ns swarmpit.compose-diff
   (:require [clojure.string :as str]))
 
-(defn- lcs-ops [a b]
+(def ^:private max-cells
+  "LCS table budget. The diff runs on the browser thread on every edit, and
+   edits at both ends of a large compose defeat prefix/suffix trimming."
+  4000000)
+
+(defn- coarse-ops
+  "Whole-block replacement: every baseline line deleted, every current line added."
+  [a b]
+  (concat (map (fn [line] [:del line]) a)
+          (repeat (count b) [:add])))
+
+(defn- precise-ops [a b]
   (let [m (count a)
         n (count b)
         dp (reduce
@@ -21,6 +32,11 @@
         (recur (dec i) j (conj ops [:del (nth a (dec i))]))
         (pos? j) (recur i (dec j) (conj ops [:add]))
         :else ops))))
+
+(defn- lcs-ops [a b]
+  (if (> (* (count a) (count b)) max-cells)
+    (coarse-ops a b)
+    (precise-ops a b)))
 
 (defn changes [baseline current]
   (let [prefix (count (take-while true? (map = baseline current)))

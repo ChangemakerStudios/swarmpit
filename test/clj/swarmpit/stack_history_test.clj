@@ -134,3 +134,31 @@
                                           (throw (ex-info "conflict" {:status 409})))]
         (is (nil? (api/append-history! "app" {})))
         (is (= 3 @writes))))))
+
+
+(deftest digest-only-redeploys-are-recorded
+  (let [stackfile (atom {:name "app" :history []})]
+    (with-redefs [cc/stackfile (fn [_] @stackfile)
+                  cc/update-stackfile (fn [_ delta] (swap! stackfile merge delta))
+                  api/stack-compose (constantly "services:\n  web:\n    image: nginx:latest\n")]
+      (api/append-history! "app" {:by "agent" :trigger {:kind "auto-redeploy" :service "web" :digest "sha256:aaa"}})
+      (api/append-history! "app" {:by "agent" :trigger {:kind "auto-redeploy" :service "web" :digest "sha256:bbb"}})
+      (testing "a new digest is a new entry even though the compose text is unchanged"
+        (is (= ["sha256:aaa" "sha256:bbb"] (map #(get-in % [:trigger :digest]) (:history @stackfile)))))
+      (api/append-history! "app" {:by "agent" :trigger {:kind "auto-redeploy" :service "web" :digest "sha256:bbb"}})
+      (api/append-history! "app" {:by "bob" :trigger {:kind "stack-redeploy"}})
+      (testing "the same digest again, or an undigested no-op, is still deduplicated"
+        (is (= 2 (count (:history @stackfile))))))))
+
+(deftest stack-update-survives-a-concurrent-stackfile-write
+  (let [writes (atom [])
+        revs (atom 1)]
+    (with-redefs [cc/stackfile (fn [_] {:name "app" :_rev (str @revs) :spec {:compose "old"}})
+                  api/stack-login (constantly nil)
+                  swarmpit.docker.engine.cli/stack-deploy (fn [& _] (swap! revs inc))
+                  cc/update-stackfile (fn [doc delta]
+                                        (if (= (:_rev doc) (str @revs))
+                                          (swap! writes conj delta)
+                                          (throw (ex-info "conflict" {:status 409}))))]
+      (api/update-stack nil {:name "app" :spec {:compose "new"}})
+      (is (= [{:spec {:compose "new"} :previousSpec {:compose "old"}}] @writes)))))
