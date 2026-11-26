@@ -2,6 +2,8 @@
   (:require [buddy.auth :refer [authenticated?]]
             [buddy.auth.accessrules :refer [success error wrap-access-rules]]
             [clojure.string :as str]
+            [clojure.tools.logging :as log]
+            [ring.util.codec :as codec]
             [swarmpit.config :as cfg]
             [swarmpit.handler :refer [resp-error]]
             [swarmpit.token :refer [admin?]]
@@ -19,15 +21,17 @@
   [_]
   true)
 
-(defn- query-param
-  "Read a raw query parameter. Access rules run before the parameters
-   middleware, so the query string has not been parsed yet."
-  [request param]
-  (some->> (str/split (or (:query-string request) "") #"&")
-           (map #(str/split % #"=" 2))
-           (filter #(= param (first %)))
-           (first)
-           (second)))
+(defn- event-push-token
+  "The token the agent presented, if any. Access rules run before the
+   parameters middleware, so the query string has not been parsed yet."
+  [{:keys [headers query-string]}]
+  (or (get headers "x-swarmpit-event-token")
+      ;; upstream swarmpit's name for the same header
+      (get headers "x-swarmpit-agent-token")
+      ;; a malformed escape (token=%ZZ) must read as a bad token, not a 500
+      (let [params (try (codec/form-decode (or query-string ""))
+                        (catch Exception _ nil))]
+        (when (map? params) (get params "token")))))
 
 (defn- event-push-access
   "Authorize the agent's `POST /events`.
@@ -43,6 +47,9 @@
        parameter, which any agent can send because EVENT_ENDPOINT is a full URL:
        EVENT_ENDPOINT=http://app:8080/events?token=<token>
 
+   Upstream swarmpit's SWARMPIT_AGENT_TOKEN / X-Swarmpit-Agent-Token are
+   accepted as aliases, so either agent build works against either name.
+
    The secret deliberately does not travel in the Authorization header: that is
    parsed as a JWT by the authentication middleware, which runs first and
    rejects anything it cannot verify before these rules are consulted.
@@ -50,14 +57,17 @@
    A logged-in user is always allowed, which keeps the endpoint usable from the
    UI and from tests."
   [request]
-  (let [expected (cfg/config :event-token)]
+  (let [expected (some #(when-not (str/blank? %) %)
+                       [(cfg/config :event-token) (cfg/config :agent-token)])]
     (cond
-      (str/blank? expected) true
-      (= expected (get-in request [:headers "x-swarmpit-event-token"])) true
-      (= expected (query-param request "token")) true
+      (nil? expected) true
+      (= expected (event-push-token request)) true
       (authenticated? request) true
-      :else (error {:code    401
-                    :message "Authentication failed"}))))
+      :else (do
+              (log/warn "Rejected event push from" (:remote-addr request)
+                        "- missing or invalid event token")
+              (error {:code    401
+                      :message "Authentication failed"})))))
 
 (defn- admin-access
   [{:keys [identity]}]

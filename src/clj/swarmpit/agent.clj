@@ -6,35 +6,49 @@
   (:import (clojure.lang ExceptionInfo)
            (java.time Instant Duration)))
 
+(def ^:private in-flight-update-states #{"updating" "rollback_started"})
+
 (defn- autoredeploy-job
   []
   (when-let [services (try
                         (->> (api/services)
                              (filter #(get-in % [:deployment :autoredeploy]))
-                             ;; digest-only images are pinned; nothing to track
-                             (filter #(not (str/blank? (get-in % [:repository :tag]))))
-                             (filter #(not= "updating" (get-in % [:status :update]))))
+                             ;; digest-only images (repo@sha256:..) are pinned; nothing to track.
+                             ;; an untagged image with no digest still tracks :latest
+                             (remove #(and (str/blank? (get-in % [:repository :tag]))
+                                           (some? (get-in % [:repository :imageDigest]))))
+                             (remove #(contains? in-flight-update-states (get-in % [:status :update]))))
                         (catch Exception e
                           (error "Autoredeploy: failed to fetch services" (.getMessage e))
                           nil))]
     (doseq [service services]
       (let [id (:id service)
             name (:serviceName service)
+            stack (:stack service)
             repository (:repository service)]
         (try
           (let [current-digest (:imageDigest repository)
-                latest-digest (api/repository-digest nil
-                                                     (:name repository)
-                                                     (:tag repository))]
-            (when (not= current-digest
-                        latest-digest)
-              (api/redeploy-service nil id nil latest-digest)
-              (info "Service" id (str "(" name ")") "autoredeploy fired! DIGEST:" (str "[" current-digest "] -> [" latest-digest "]"))))
+                tag (api/standardize-repository-tag (:tag repository))
+                latest-digest (api/repository-digest nil (:name repository) tag)]
+            (cond
+              (str/blank? latest-digest)
+              (debug "Service" id (str "(" name ")") "autoredeploy skipped, upstream digest unresolved")
+
+              (not= current-digest latest-digest)
+              (do
+                (api/redeploy-service nil id nil latest-digest)
+                (api/append-history! stack {:by      "agent"
+                                            :trigger {:kind    "auto-redeploy"
+                                                      :service name
+                                                      :digest  latest-digest}})
+                (info "Service" id (str "(" name ")") "autoredeploy fired! DIGEST:" (str "[" current-digest "] -> [" latest-digest "]")))))
           (catch ExceptionInfo e
             (let [status (:status (ex-data e))]
               (if (= 404 status)
                 (debug "Service" id (str "(" name ")") "autoredeploy check: image not found in registry")
-                (error "Service" id (str "(" name ")") "autoredeploy failed!" (ex-data e))))))))))
+                (error "Service" id (str "(" name ")") "autoredeploy failed!" (ex-data e)))))
+          (catch Exception e
+            (error "Service" id (str "(" name ")") "autoredeploy failed!" (.getMessage e))))))))
 
 (defonce ^:private reported-task-failures (atom nil))
 

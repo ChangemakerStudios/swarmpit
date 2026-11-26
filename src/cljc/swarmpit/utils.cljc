@@ -114,13 +114,28 @@
                      :value (val l)}))
        (into [])))
 
+(def nano-factor 1000000000)
+
+;; Docker durations are int64 nanoseconds, memory int64 bytes.
+(def max-nano-seconds 9223372036)
+(def max-mib 8796093022207)
+
 (defn ->nano
+  "Seconds to nanoseconds. Docker's duration fields are integers and reject a
+   JSON float, so fractional input (e.g. 1.5s read back as a double) is rounded
+   to whole nanoseconds; integer input keeps *' overflow promotion."
   [number]
-  (when number (* number 1000000000)))
+  (when number
+    #?(:clj  (let [n (*' number nano-factor)]
+               (if (integer? n) n (Math/round (double n))))
+       :cljs (js/Math.round (* number nano-factor)))))
 
 (defn nano->
   [number]
-  (when number (/ number 1000000000)))
+  (when number
+    #?(:clj  (let [seconds (/ number nano-factor)]
+               (if (ratio? seconds) (double seconds) seconds))
+       :cljs (/ number nano-factor))))
 
 (def ^:private pows [[100 "googol"]
                      [33 "d"]

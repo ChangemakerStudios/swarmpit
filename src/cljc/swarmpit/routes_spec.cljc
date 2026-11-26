@@ -1,15 +1,21 @@
 (ns swarmpit.routes-spec
-  (:require [spec-tools.data-spec :as ds]))
+  (:require [clojure.spec.alpha :as s]
+            [spec-tools.data-spec :as ds]
+            [swarmpit.utils :refer [max-nano-seconds max-mib]]))
 
 ;; Parts
+
+(s/def ::duration-seconds (s/and number? #(not (neg? %)) #(<= % max-nano-seconds)))
+(s/def ::cpu-units (s/and number? #(not (neg? %)) #(<= % max-nano-seconds)))
+(s/def ::memory-mib (s/and number? #(not (neg? %)) #(<= % max-mib)))
 
 (def name-value
   {:name  string?
    :value string?})
 
 (def resources
-  {(ds/opt :cpu)    number?
-   (ds/opt :memory) number?})
+  {(ds/opt :cpu)    ::cpu-units
+   (ds/opt :memory) ::memory-mib})
 
 ;; Request payloads pass through clean-nils on the client, which drops blank
 ;; (unlimited) values and collapses emptied maps - so every level here has to
@@ -20,9 +26,18 @@
 
 (def deploy
   {:parallelism   number?
-   :delay         number?
+   :delay         ::duration-seconds
    :order         string?
    :failureAction string?})
+
+;; partial healthchecks are valid, e.g. compose overriding only interval/timeout
+;; and inheriting the image's test
+(def healthcheck
+  {(ds/opt :test)        (ds/maybe [string?])
+   (ds/opt :interval)    (ds/maybe ::duration-seconds)
+   (ds/opt :timeout)     (ds/maybe ::duration-seconds)
+   (ds/opt :startPeriod) (ds/maybe ::duration-seconds)
+   (ds/opt :retries)     (ds/maybe number?)})
 
 ;; Apis
 
@@ -34,6 +49,15 @@
    :email                      string?
    (ds/opt :node-dashboard)    [string?]
    (ds/opt :service-dashboard) [string?]})
+
+(def password-change
+  {:password                       string?
+   :new-password                   string?
+   (ds/opt :confirm-password)      string?})
+
+(def api-token
+  {:token              string?
+   (ds/opt :expiresAt) string?})
 
 (def stats
   {:hosts  number?
@@ -192,10 +216,7 @@
    :user            string?
    :dir             string?
    :tty             boolean?
-   :healthcheck     {:test     [string?]
-                     :interval number?
-                     :timeout  number?
-                     :retries  number?}
+   :healthcheck     healthcheck
    :logdriver       {:name string?
                      :opts [name-value]}
    :resources       {:reservation resources
@@ -250,10 +271,11 @@
    :logdriver         {:name string?
                        :opts [name-value]}
    (ds/opt :resources) service-resources
+   (ds/opt :healthcheck) (ds/maybe healthcheck)
    :deployment        {:update        deploy
                        :restartPolicy {:condition       string?
-                                       :delay           number?
-                                       (ds/opt :window) number?
+                                       :delay           ::duration-seconds
+                                       (ds/opt :window) ::duration-seconds
                                        :attempts        number?}
                        :rollback      deploy
                        :autoredeploy  boolean?
@@ -304,19 +326,14 @@
    (ds/opt :user)            string?
    (ds/opt :dir)             string?
    (ds/opt :tty)             boolean?
-   ;; partial healthchecks are valid, e.g. compose overriding only interval/timeout and inheriting the image's test
-   (ds/opt :healthcheck)     (ds/maybe
-                               {(ds/opt :test)     (ds/maybe [string?])
-                                (ds/opt :interval) (ds/maybe number?)
-                                (ds/opt :timeout)  (ds/maybe number?)
-                                (ds/opt :retries)  (ds/maybe number?)})
+   (ds/opt :healthcheck)     (ds/maybe healthcheck)
    :logdriver                {:name string?
                               :opts [name-value]}
    (ds/opt :resources)       service-resources
    :deployment               {:update        deploy
                               :restartPolicy {:condition       string?
-                                              :delay           number?
-                                              (ds/opt :window) number?
+                                              :delay           ::duration-seconds
+                                              (ds/opt :window) ::duration-seconds
                                               :attempts        number?}
                               :rollback      deploy
                               :autoredeploy  boolean?
@@ -433,13 +450,15 @@
    :_rev                       string?})
 
 (def stack
-  {:configs   [config-mount]
-   :secrets   [secret-mount]
-   :networks  [network]
-   :services  [service]
-   :stackFile boolean?
-   :stackName string?
-   :volumes   [mount]})
+  {:configs            [config-mount]
+   :secrets            [secret-mount]
+   :networks           [network]
+   :services           [service]
+   :stackFile          boolean?
+   :stackName          string?
+   (ds/opt :createdAt) string?
+   (ds/opt :updatedAt) string?
+   :volumes            [mount]})
 
 (def stack-compose
   {:name                          string?
@@ -453,3 +472,12 @@
    :type         string?
    :_id          string?
    :_rev         string?})
+
+(def stack-history-entry
+  {:at                   string?
+   :by                   string?
+   (ds/opt :comment)     string?
+   (ds/opt :trigger)     {(ds/opt :kind)    string?
+                          (ds/opt :service) string?
+                          (ds/opt :digest)  string?}
+   :spec                 {:compose string?}})

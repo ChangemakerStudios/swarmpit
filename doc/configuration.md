@@ -60,6 +60,8 @@ agent:
 
 The secret is never read from the `Authorization` header: that is parsed as a JWT by the authentication middleware, which runs first and rejects anything it cannot verify before this rule is reached.
 
+Upstream swarmpit calls this `SWARMPIT_AGENT_TOKEN` with an `X-Swarmpit-Agent-Token` header; both names are accepted as aliases, and `SWARMPIT_EVENT_TOKEN` wins if both are set.
+
 Logged-in users are always allowed through, so the UI is unaffected either way.
 Default is `nil` (endpoint open, matching the agent's out-of-the-box behaviour).
 
