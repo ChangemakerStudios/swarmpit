@@ -1575,10 +1575,13 @@
                       previous (peek history)
                       ;; tagged images render without their digest, so a digest-only
                       ;; auto-redeploy leaves the compose text unchanged
-                      digest (:digest trigger)]
+                      digest (:digest trigger)
+                      ;; keyed by service too: two services of a stack moving to
+                      ;; the same new digest are two distinct changes
+                      image-change (juxt :service :digest)]
                   (when (or (not= compose (get-in previous [:spec :compose]))
                             (and (some? digest)
-                                 (not= digest (get-in previous [:trigger :digest]))))
+                                 (not= (image-change trigger) (image-change (:trigger previous)))))
                     (let [result (try
                                    (cc/update-stackfile stackfile {:history (conj history entry)})
                                    (catch Exception e
@@ -1727,8 +1730,11 @@
     ;; the snapshot can only reference secrets/configs as external, but
     ;; `docker stack rm` deletes the ones the stack itself created, so
     ;; reactivating would point at resources that no longer exist
-    (let [owned (concat (map :secretName (secrets (stack-label stack-name)))
-                        (map :configName (configs (stack-label stack-name))))]
+    ;; dc/* rather than api/configs, which swallows lookup errors as []:
+    ;; a failed lookup must stop the removal, not wave it through
+    (let [label (stack-label stack-name)
+          owned (concat (map #(get-in % [:Spec :Name]) (dc/secrets label))
+                        (map #(get-in % [:Spec :Name]) (dc/configs label)))]
       (when (seq owned)
         (throw (ex-info "Stack owns secrets/configs that deactivation would delete"
                         {:status 400

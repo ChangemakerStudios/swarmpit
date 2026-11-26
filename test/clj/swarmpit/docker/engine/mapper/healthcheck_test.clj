@@ -1,5 +1,6 @@
 (ns swarmpit.docker.engine.mapper.healthcheck-test
   (:require [clojure.test :refer :all]
+            [cheshire.core]
             [clojure.spec.alpha :as s]
             [spec-tools.data-spec :as ds]
             [swarmpit.routes-spec :as spec]
@@ -108,3 +109,11 @@
     (is (integer? (swarmpit.utils/->nano 0.1)))
     (is (= 30000000000 (swarmpit.utils/->nano 30)))
     (is (nil? (swarmpit.utils/->nano nil)))))
+
+(deftest fractional-start-period-serializes-as-an-integer
+  (testing "an edited service keeping a 500ms start period sends integer nanoseconds"
+    (let [json (cheshire.core/generate-string
+                 (outbound/->service-healthcheck {:test ["CMD" "true"] :interval 1.5 :startPeriod 0.5}))]
+      (is (re-find #"\"StartPeriod\":500000000[,}]" json))
+      (is (re-find #"\"Interval\":1500000000[,}]" json))
+      (is (not (re-find #"\d\.\d" json))))))

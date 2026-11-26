@@ -162,3 +162,19 @@
                                           (throw (ex-info "conflict" {:status 409}))))]
       (api/update-stack nil {:name "app" :spec {:compose "new"}})
       (is (= [{:spec {:compose "new"} :previousSpec {:compose "old"}}] @writes)))))
+
+(deftest same-digest-on-two-services-is-two-entries
+  (let [stackfile (atom {:name "app" :history []})]
+    (with-redefs [cc/stackfile (fn [_] @stackfile)
+                  cc/update-stackfile (fn [_ delta] (swap! stackfile merge delta))
+                  api/stack-compose (constantly "services:
+  a:
+    image: x:1
+  b:
+    image: x:1
+")]
+      (api/append-history! "app" {:by "agent" :trigger {:kind "auto-redeploy" :service "a" :digest "sha256:new"}})
+      (api/append-history! "app" {:by "agent" :trigger {:kind "auto-redeploy" :service "b" :digest "sha256:new"}})
+      (api/append-history! "app" {:by "agent" :trigger {:kind "auto-redeploy" :service "b" :digest "sha256:new"}})
+      (is (= [["a" "sha256:new"] ["b" "sha256:new"]]
+             (map (comp (juxt :service :digest) :trigger) (:history @stackfile)))))))

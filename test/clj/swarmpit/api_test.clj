@@ -238,8 +238,8 @@ networks:
                     api/stack-compose (fn [_] (throw (ex-info "must not be called" {})))
                     api/create-stackfile #(swap! created conj %)
                     dcli/stack-remove (constantly {:result "removed"})
-                    api/secrets (constantly [])
-                    api/configs (constantly [])]
+                    dc/secrets (constantly [])
+                    dc/configs (constantly [])]
         (is (= {:result "removed"} (api/deactivate-stack "web"))))
       (is (empty? @created))))
 
@@ -249,8 +249,8 @@ networks:
                     api/stack-compose (fn [_] "services:\n  web: {}\n")
                     api/create-stackfile #(swap! events conj [:created %])
                     dcli/stack-remove (fn [n] (swap! events conj [:removed n]) {:result "removed"})
-                    api/secrets (constantly [])
-                    api/configs (constantly [])]
+                    dc/secrets (constantly [])
+                    dc/configs (constantly [])]
         (api/deactivate-stack "web"))
       (is (= [[:created {:name "web" :spec {:compose "services:\n  web: {}\n"}}]
               [:removed "web"]]
@@ -263,8 +263,8 @@ networks:
                     api/stack-compose (constantly nil)
                     api/create-stackfile (fn [_] (throw (ex-info "must not be called" {})))
                     dcli/stack-remove (fn [n] (reset! removed n) {:result "removed"})
-                    api/secrets (constantly [])
-                    api/configs (constantly [])]
+                    dc/secrets (constantly [])
+                    dc/configs (constantly [])]
         (api/deactivate-stack "web"))
       (is (= "web" @removed))))
 
@@ -275,12 +275,26 @@ networks:
   web: {}
 ")
                     api/create-stackfile (fn [_] (throw (ex-info "must not be called" {})))
-                    api/secrets (fn [label] (when (= label "com.docker.stack.namespace=web") [{:secretName "web_db"}]))
-                    api/configs (constantly [{:configName "web_settings"}])
+                    dc/secrets (fn [label] (when (= label "com.docker.stack.namespace=web") [{:Spec {:Name "web_db"}}]))
+                    dc/configs (constantly [{:Spec {:Name "web_settings"}}])
                     dcli/stack-remove (fn [n] (reset! removed n) {:result "removed"})]
         (let [e (try (api/deactivate-stack "web") nil (catch Exception e e))]
           (is (= 400 (:status (ex-data e))))
           (is (re-find #"web_db, web_settings" (get-in (ex-data e) [:body :error])))))
+      (is (nil? @removed)))))
+
+(deftest deactivate-stack-fails-closed
+  (testing "a failed secret/config lookup stops the removal instead of passing as none owned"
+    (let [removed (atom nil)]
+      (with-redefs [cc/stackfile (constantly nil)
+                    api/stack-compose (constantly "services:
+  web: {}
+")
+                    api/create-stackfile (fn [_] (throw (ex-info "must not be called" {})))
+                    dc/secrets (constantly [])
+                    dc/configs (fn [_] (throw (ex-info "Docker error" {:status 500})))
+                    dcli/stack-remove (fn [n] (reset! removed n) {:result "removed"})]
+        (is (thrown? Exception (api/deactivate-stack "web"))))
       (is (nil? @removed)))))
 
 (deftest deployed-stacks-timestamps-test
